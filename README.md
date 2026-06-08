@@ -8,6 +8,6 @@ Contents:
 
 - `savior/` - core source code, configurations, task prompts, task entry scripts, and sanitized example outputs.
 - `requirements.txt` and `pyproject.toml` - Python dependency metadata.
-- `.mcp.json` - Playwright MCP configuration used by the browser-interaction layer.
+- `.mcp.json` - Playwright MCP configuration.
 
 The artifact does not include target-site credentials, CAPTCHA service keys, full evaluation logs, or vendor disclosure material. Live execution requires researcher-controlled accounts, Claude Code, and Playwright MCP.
