@@ -1,0 +1,13 @@
+[project]
+name = "savior"
+version = "1.0.0"
+description = "Systematic Analysis of Vulnerabilities in Integrated OAuth Relying Parties"
+requires-python = ">=3.10"
+dependencies = [
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+verification = [
+    "pytesseract>=0.3.10",
+]

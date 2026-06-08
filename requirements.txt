@@ -1,0 +1,6 @@
+pyyaml>=6.0
+Pillow>=10.0.0
+
+# Optional: screenshot verification (OCR-based)
+# pip install pytesseract
+# Requires tesseract-ocr system package

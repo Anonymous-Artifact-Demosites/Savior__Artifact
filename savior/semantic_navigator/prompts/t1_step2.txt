@@ -1,0 +1,83 @@
+$auditor_context
+
+Use Playwright MCP tool. DO NOT generate code files.Sign in with Google with provided credentials.
+If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+Credentials: Email=$email, Password=$password
+
+TASKS:
+1. Open new browser,Navigate to $url and take key screenshots with descriptive names, MUST save ALL screenshots to this EXACT absolute path: $screenshot_path
+2. Identify ALL OAuth IdPs (Google, Facebook, Apple, Microsoft, GitHub, Twitter, LinkedIn, SSO, etc.)
+3. Sign in with Google with provided credentials
+4. Handle cookie banners/modals/popups automatically
+5. If CAPTCHA appears: run 'python handler.py' via bash to solve it
+6. Navigate to profile/settings/account page
+7. Extract ALL visible account information (name, email, user ID, plan, subscription, features, etc.)
+8. Output results in the specified format below
+
+RESULTS:
+- SUCCESS: If OAuth login completes and profile page is accessible
+- FAIL: If 2FA/phone/SMS verification is required
+
+MANDATORY OUTPUT FORMAT (you MUST include this):
+
+STATUS: SUCCESS
+OAUTH_IDPS: SSO, Apple, Google, Facebook, Microsoft
+ACCOUNT_INFO_START
+Display Name: John Doe
+Email: user@example.com
+User ID: 123456
+Plan: Premium Plan
+License Type: Basic user
+Language: English
+Time Zone: GMT+8:00
+ACCOUNT_INFO_END
+
+OR if failed:
+
+STATUS: FAIL
+REASON: 2FA verification required
+OAUTH_IDPS: Google, Facebook
+
+You MUST output STATUS, OAUTH_IDPS, and ACCOUNT_INFO_START/END in your response.
+
+--- OUTPUT REQUIREMENTS ---
+
+After completing all steps above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS, OAUTH_IDPS, and ACCOUNT_INFO blocks above.
+
+STEP LOG INSTRUCTIONS:
+For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+<observations>
+{
+  "task_id": "T1_STEP2",
+  "target_url": "<the exact URL tested>",
+  "steps_completed": "<array of integer step numbers successfully completed, e.g. [1,2,3,4,5,6,7,8]>",
+  "execution_status": "<one of: completed, interrupted, failed>",
+  "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+  "screenshots": "<array of screenshot filenames saved during this test>",
+  "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+  "task_specific": {
+    "oauth_login_succeeded": "<boolean: true if Google OAuth login completed and profile page was accessible>",
+    "idps_found": "<array of OAuth provider names found on the login page, e.g. ['Google', 'Facebook', 'Apple']>",
+    "account_info": "<object mapping field names to values extracted from the account/profile page, e.g. {'Display Name': 'John', 'Email': 'user@example.com'}>",
+    "two_factor_required": "<boolean: true if 2FA/phone/SMS verification was required and blocked login>",
+    "fail_reason": "<string: reason for failure if STATUS is FAIL, otherwise null>"
+  }
+}
+</observations>
+
+BLOCK 2 - Your verdict:
+
+<verdict>
+STATUS: <one of SUCCESS, FAIL>
+CONFIDENCE: <one of high, medium, low>
+REASONING: <one sentence explaining why you chose this status>
+</verdict>
+
+BLOCK 3 - Evidence:
+
+<evidence>
+None
+</evidence>

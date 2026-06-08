@@ -1,0 +1,99 @@
+{
+  "task_id": "T2",
+  "target_url": "https://www.2captcha.com",
+  "domain": "2captcha_com",
+  "observations_valid": true,
+  "observations_error": null,
+  "observations": {
+    "task_id": "T2",
+    "target_url": "https://www.2captcha.com",
+    "steps_completed": [1, 2, 3, 4],
+    "execution_status": "completed",
+    "captcha_encountered": false,
+    "screenshots": [],
+    "step_log": [
+      {
+        "step": 1,
+        "action": "Register via email and password",
+        "result": "Registration reached a confirmation-code page and required email verification",
+        "evidence": "First-party registration remained pending until email verification",
+        "obstacles": []
+      },
+      {
+        "step": 2,
+        "action": "Open a new browser session and register or log in with Google OAuth using the same email",
+        "result": "OAuth registration completed without requiring email verification",
+        "evidence": "Google OAuth session reached an activated account state",
+        "obstacles": []
+      },
+      {
+        "step": 3,
+        "action": "Log in with the email/password credentials from the first registration",
+        "result": "Email/password login reached the same account created or linked through OAuth",
+        "evidence": "The post-login account identifier matched the OAuth session identifier",
+        "obstacles": []
+      },
+      {
+        "step": 4,
+        "action": "Compare account identifiers from OAuth and email/password sessions",
+        "result": "Identifiers matched",
+        "evidence": "The same redacted API key was observed from both sessions",
+        "obstacles": []
+      }
+    ],
+    "task_specific": {
+      "registration_verification_required": true,
+      "oauth_registration_completed": true,
+      "email_login_completed": true,
+      "oauth_identifiers": {
+        "api_key": "[REDACTED_SAME_API_KEY]"
+      },
+      "email_identifiers": {
+        "api_key": "[REDACTED_SAME_API_KEY]"
+      },
+      "is_identifiers_identical": true
+    }
+  },
+  "llm_result": {
+    "status": "T2_VULN",
+    "confidence": "high",
+    "reasoning": "Google OAuth completed without email verification and later email/password login reached the same account."
+  },
+  "rule_result": {
+    "status": "T2_VULN",
+    "reason": "First-party registration required verification, OAuth completed, email login completed, and both paths resolved to identical identifiers."
+  },
+  "cross_check": {
+    "status": "T2_VULN",
+    "confidence": "high",
+    "source": "verified",
+    "requires_manual_review": false,
+    "note": "Rule-based and LLM verdicts agree",
+    "path_a": {
+      "status": "T2_VULN",
+      "reason": "First-party registration required verification, OAuth completed, email login completed, and both paths resolved to identical identifiers."
+    },
+    "path_b": {
+      "status": "T2_VULN",
+      "confidence": "high",
+      "reasoning": "Google OAuth completed without email verification and later email/password login reached the same account."
+    },
+    "screenshot_evidence": {
+      "available": false,
+      "agreement_rate": null,
+      "checks": [],
+      "interpretation": "Screenshot verification unavailable (no screenshots or OCR dependencies not installed)"
+    }
+  },
+  "evidence": {
+    "attack_path": [
+      "Registered via email/password and reached an email verification requirement",
+      "Started a new browser session and used Google OAuth with the same email",
+      "OAuth registration completed without email verification",
+      "Email/password login later reached the same account",
+      "OAuth and email/password identifiers matched"
+    ],
+    "missing_security_check": "OAuth registration should not auto-link to a pending unverified first-party registration without verifying ownership.",
+    "proof": "The same redacted API key was observed from the OAuth session and the email/password session."
+  }
+}

@@ -1,0 +1,107 @@
+================================================================================
+                    VULNERABILITY ANALYSIS REPORT - T6
+================================================================================
+
+[Basic Information]
+Target URL      : https://www.pinterest.com
+Domain          : pinterest_com
+Test Time       : 2026-05-20 09:38:59 - 2026-05-20 09:51:35
+Duration        : 00:12:36
+Status          : T6_VULN
+
+================================================================================
+[Vulnerability Overview]
+================================================================================
+ID              : T6
+Name            : The Shadow Binding Attack
+Risk Level      : High
+
+Description:
+After changing the email associated with an OAuth account, a shadow binding is created.
+Both the original OAuth account (A) and the new OAuth account (B) can access the same
+website account, allowing an attacker to maintain persistent access even after the
+victim changes their email.
+
+================================================================================
+[Attack Analysis (Site-Specific)]
+================================================================================
+Attack Path:
+1. Logged in with Google OAuth account A and created a Pinterest account
+2. Changed the primary email from A to B through account settings
+3. Logged out and logged in with Google OAuth account B - accessed the same Pinterest account
+4. Logged out and logged in with Google OAuth account A - still accessed the same Pinterest account
+5. Both OAuth accounts access the same website account, confirming shadow binding
+Missing Security Check: Email change did not unbind original OAuth, creating shadow binding
+Proof of Vulnerability: OAuth A and OAuth B both access the same Pinterest account (same user ID, same profile, same settings) after email migration
+Identifiers Collected: Username=testuser_pinterest, Profile URL=/testuser_pinterest/, Account settings accessible from both OAuth logins
+
+================================================================================
+[Cross-check Verification]
+================================================================================
+Verdict Source  : verified
+Confidence      : high
+Rule-based      : T6_VULN
+LLM             : T6_VULN
+Note            : Rule-based and LLM verdicts agree
+
+================================================================================
+[Screenshot Evidence]
+================================================================================
+Available       : False
+Agreement Rate  : N/A
+Interpretation  : Screenshot verification unavailable (no screenshots or OCR dependencies not installed)
+
+================================================================================
+[Step Log]
+================================================================================
+1. Checked the Pinterest login page for Google OAuth support; Google OAuth login was available. [completed]
+2. Logged in with Google OAuth account A using test_account_a@example.com; the login succeeded and accessed the Pinterest account. [completed]
+3. Changed the primary email from account A to account B through account settings; the email change succeeded. [completed]
+4. Logged out after the email change. [completed]
+5. Logged in with Google OAuth account B using test_account_b@example.com and collected identifiers; OAuth B accessed the same Pinterest account. [completed]
+6. Logged out after the OAuth B session. [completed]
+7. Logged in again with Google OAuth account A using test_account_a@example.com and collected identifiers; OAuth A still accessed the same Pinterest account. [completed]
+
+
+================================================================================
+[General Remediation]
+================================================================================
+- Unbind the original OAuth account when email is changed
+- Require re-authentication with the new OAuth account after email change
+- Notify users about OAuth binding status after email change
+- Implement proper OAuth account to email binding validation
+- Do not allow multiple OAuth accounts to bind to the same website account
+
+================================================================================
+[Test Credentials (Redacted)]
+================================================================================
+Email A: test_account_a@example.com
+Email B: test_account_b@example.com
+Passwords: [REDACTED]
+
+================================================================================
+[Raw Test Output]
+================================================================================
+Based on the test execution, the Pinterest account was:
+- Originally created with Google OAuth using account A (test_account_a@example.com)
+- Email changed to account B (test_account_b@example.com)
+- Still connected to Google OAuth after the email migration
+- Username: testuser_pinterest
+
+STATUS: T6_VULN
+
+The vulnerability exists because the Pinterest account's email was changed from A to B while the Google OAuth connection remained usable. OAuth account B and OAuth account A both accessed the same Pinterest account after the email migration.
+
+VULN_ANALYSIS_START
+Attack Path:
+1. Logged in with Google OAuth account A and created a Pinterest account
+2. Changed the primary email from A to B through account settings
+3. Logged out and logged in with Google OAuth account B - accessed the same Pinterest account
+4. Logged out and logged in with Google OAuth account A - still accessed the same Pinterest account
+5. Both OAuth accounts access the same website account, confirming shadow binding
+Missing Security Check: Email change did not unbind original OAuth, creating shadow binding
+Proof of Vulnerability: OAuth A and OAuth B both access the same Pinterest account (same user ID, same profile, same settings) after email migration
+Identifiers Collected: Username=testuser_pinterest, Profile URL=/testuser_pinterest/, Account settings accessible from both OAuth logins
+VULN_ANALYSIS_END
+
+================================================================================

@@ -1,0 +1,989 @@
+version: 1
+intent_library: savior/configs/intent_library.yaml
+description: |
+  Ordered task prompt compositions for SAVIOR. Each composition is designed to preserve the source prompt order while replacing reusable behavior with intent references and task-specific output blocks with named fragment references. Variables use ${var_name} syntax.
+assembly_rules:
+- If an item has fragment_ref, concatenate fragments[fragment_ref].
+- If an item has custom_fragment, concatenate custom_fragment; when intent is also present, custom_fragment is the task-specific rendering of that intent.
+- If an item has intent and no custom_fragment, concatenate the prompt_fragment for that intent from intent_library.
+tasks:
+  T1_STEP1:
+    name: Implicit Pre-hijacking - Registration Phase
+    description: Register with victim's email without verification
+    source_prompt: savior/semantic_navigator/prompts/t1_step1.txt
+    output_schema: STRUCTURED_OUTPUT_T1_STEP1
+    vuln_analysis: VULN_ANALYSIS_T1_STEP1
+    composition:
+    - custom_fragment: |+
+        ${auditor_context}
+
+    - intent: GLOBAL_BROWSER_RULES
+    - custom_fragment: |
+        Anti-detection: 0.5s delays, type email/password slowly (10ms/char).Report CAPTCHA if encountered.
+
+        Credentials: Email=${email}, Password=${password}, Username=${username}
+
+        SCREENSHOT REQUIREMENTS:
+        - Save screenshots to: ${screenshot_path}
+        - Naming format: register_[step_name].png
+        - Required screenshots:
+          * register_homepage.png - Initial page
+          * register_form_filled.png - Registration form filled
+          * register_submitted.png - After form submission
+          * register_dashboard.png - After successful login/dashboard
+          * register_settings_page.png - Settings/account page
+          * register_email_verification_status.png - Email verification status (MANDATORY for SUCCESS/DOUBT)
+          * register_user_info.png - Final user information page (MANDATORY for SUCCESS/DOUBT)
+
+        EXECUTE:
+    - intent: HANDLE_CAPTCHA
+    - step: 1
+      intent: FIND_REGISTRATION_PAGE
+      vars:
+        url: $url
+      custom_fragment: |2+
+
+        1. Open new browser,Navigate to ${url}
+           -> Take screenshot: register_homepage.png
+
+    - step: 2-4
+      intent: FILL_REGISTRATION_FORM
+      vars:
+        url: $url
+        email: $email
+        password: $password
+        username: $username
+      custom_fragment: |
+        2-4. Register on ${url} :
+           - Find registration form, fill slowly
+           -> Take screenshot: register_form_filled.png
+           - Submit form
+           -> Take screenshot: register_submitted.png
+           - If immediate email verification required -> FAIL (no more screenshots needed)
+           - Complete post-registration forms (Age=25, Location=New York, Bio="Tech")
+    - step: 5
+      custom_fragment: |2+
+
+        5. Continue until dashboard
+           -> Take screenshot: register_dashboard.png
+
+    - step: 6
+      intent: NAVIGATE_TO_SETTINGS
+      custom_fragment: "6. MANDATORY - FIND EMAIL SETTINGS:\n   Try ALL until found:\n   a) Click user avatar -> Settings/Account/Profile\n   b) Look for Settings/Account buttons on page\n   c) Try URLs: /settings, /account, /profile, /user/settings\n   d) Use Playwright to search page for \"setting\", \"account\"\n   \n   -> Take screenshot: register_settings_page.png\n   \n   In settings, find email section (check ALL tabs if multiple exist)\n\n"
+    - step: 7
+      intent: CHECK_EMAIL_VERIFICATION
+      custom_fragment: "7. CRITICAL - VERIFICATION STATUS CHECK:\n   Use Playwright MCP to:\n   - Get page text content\n   - Search for elements containing \"verify\", \"unverified\", \"verification\"\n   - Look for warning banners, alert boxes, colored badges near email\n   - Check if any buttons with \"verify\" text exist\n   \n   -> MANDATORY SCREENSHOT: register_email_verification_status.png\n   (Capture the area showing email and its verification status)\n   \n   ONLY IF NONE FOUND -> SUCCESS:\n   Email shown with NO verification text anywhere on page\n   No \"verify\" buttons or links\n   No warning banners OR shows \"verified\"/\"confirmed\" status\n   \n   **IMPORTANT**: if it EXISTS -> DOUBT\n\n"
+    - step: 8
+      intent: EXTRACT_ACCOUNT_INFO
+      custom_fragment: "8. IF STATUS IS SUCCESS or DOUBT - Extract ALL user information visible in profile/settings (user ID, email, username, bio, location, etc.). Search ALL tabs. ONLY include fields with actual values.\n   \n   -> MANDATORY SCREENSHOT: register_user_info.png\n   (Capture the complete user profile/settings page showing all user information)\n\n"
+    - step: 9
+      custom_fragment: "9. MUST OUTPUT in plain text (NO markdown, NO asterisks):\n  STATUS: [SUCCESS or DOUBT or FAIL]\n  OBSTACLES: [issues or \"None\"]\n  \n  IF SUCCESS or DOUBT, also output (only non-empty fields):\n  USER_INFO_START\n  [Field]: [value]\n  [Field]: [value]\n  USER_INFO_END\n\nIMPORTANT: For SUCCESS and DOUBT status, you MUST save at least these 2 screenshots:\n- register_email_verification_status.png\n- register_user_info.png\n\n"
+    - fragment_ref: VULN_ANALYSIS_T1_STEP1
+    - fragment_ref: STRUCTURED_OUTPUT_T1_STEP1
+  T1_STEP2:
+    name: Implicit Pre-hijacking - OAuth Login Phase
+    description: Complete OAuth login and extract linked account information
+    source_prompt: savior/semantic_navigator/prompts/t1_step2.txt
+    output_schema: STRUCTURED_OUTPUT_T1_STEP2
+    vuln_analysis: null
+    composition:
+    - custom_fragment: |+
+        ${auditor_context}
+
+    - intent: GLOBAL_BROWSER_RULES
+      custom_fragment: |
+        Use Playwright MCP tool. DO NOT generate code files.Sign in with Google with provided credentials.
+        If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+    - custom_fragment: |
+        Credentials: Email=${email}, Password=${password}
+
+        TASKS:
+        1. Open new browser,Navigate to ${url} and take key screenshots with descriptive names, MUST save ALL screenshots to this EXACT absolute path: ${screenshot_path}
+    - step: 2
+      intent: CHECK_OAUTH_AVAILABILITY
+      custom_fragment: |
+        2. Identify ALL OAuth IdPs (Google, Facebook, Apple, Microsoft, GitHub, Twitter, LinkedIn, SSO, etc.)
+    - step: 3
+      intent: PERFORM_OAUTH_LOGIN
+      vars:
+        email: $email
+        password: $password
+      custom_fragment: |
+        3. Sign in with Google with provided credentials
+    - step: 4
+      intent: HANDLE_COOKIE_BANNERS
+    - step: 5
+      intent: HANDLE_CAPTCHA
+      custom_fragment: |
+        5. If CAPTCHA appears: run 'python handler.py' via bash to solve it
+    - step: 6
+      intent: NAVIGATE_TO_SETTINGS
+      custom_fragment: |
+        6. Navigate to profile/settings/account page
+    - step: 7
+      intent: EXTRACT_ACCOUNT_INFO
+      custom_fragment: |
+        7. Extract ALL visible account information (name, email, user ID, plan, subscription, features, etc.)
+    - step: 8
+      custom_fragment: |+
+        8. Output results in the specified format below
+
+        RESULTS:
+        - SUCCESS: If OAuth login completes and profile page is accessible
+        - FAIL: If 2FA/phone/SMS verification is required
+
+        MANDATORY OUTPUT FORMAT (you MUST include this):
+
+        STATUS: SUCCESS
+        OAUTH_IDPS: SSO, Apple, Google, Facebook, Microsoft
+        ACCOUNT_INFO_START
+        Display Name: John Doe
+        Email: user@example.com
+        User ID: 123456
+        Plan: Premium Plan
+        License Type: Basic user
+        Language: English
+        Time Zone: GMT+8:00
+        ACCOUNT_INFO_END
+
+        OR if failed:
+
+        STATUS: FAIL
+        REASON: 2FA verification required
+        OAUTH_IDPS: Google, Facebook
+
+        You MUST output STATUS, OAUTH_IDPS, and ACCOUNT_INFO_START/END in your response.
+
+    - fragment_ref: STRUCTURED_OUTPUT_T1_STEP2
+  T2:
+    name: Unaligned First-party Verification Hijacking
+    description: Compare normal registration and OAuth registration identities
+    source_prompt: savior/semantic_navigator/prompts/t2.txt
+    output_schema: STRUCTURED_OUTPUT_T2
+    vuln_analysis: VULN_ANALYSIS_T2
+    composition:
+    - custom_fragment: |
+        ${auditor_context}
+
+        Open new browser,Navigate to ${target_url} and complete the following account registration security test:
+        If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+        PHASE 1 - Normal Email Registration:
+    - step: '1.1'
+      intent: FIND_REGISTRATION_PAGE
+      custom_fragment: |
+        1. Find the registration/sign-up page
+    - step: '1.2'
+      intent: FILL_REGISTRATION_FORM
+      vars:
+        email: $email
+        password: $password_registration
+      custom_fragment: |
+        2. Register a new account using:
+           - Email: ${email}
+           - Password: ${password_registration}
+    - step: '1.3'
+      intent: CHECK_EMAIL_VERIFICATION
+      custom_fragment: |+
+        3. CRITICAL: Check if email verification is required during or after registration
+           - If NO email verification is required (registration completes directly without asking to verify email), output 'RESULT: T2_N/A' and EXIT immediately
+           - If email verification IS required, output 'PHASE1: Email verification required' and continue to next phase
+        4. Do NOT proceed to PHASE 2 unless email verification is clearly required or the account is already existed
+
+    - custom_fragment: |
+        PHASE 2 - Google OAuth Registration (in a NEW browser window/profile):
+        1. Open ${target_url} in a completely new browser session (incognito/private mode)
+    - step: 2.2-2.3
+      intent: PERFORM_OAUTH_LOGIN
+      vars:
+        email: $email
+        password_gmail: $password_gmail
+    - step: '2.4'
+      intent: COMPLETE_EMAIL_VERIFICATION
+      vars:
+        email: $email
+        password_gmail: $password_gmail
+      custom_fragment: |
+        4. If email verification is required:
+           a) Open Gmail in a new tab
+           b) Login to Gmail with the same credentials (Email: ${email}, Password: ${password_gmail})
+           c) Find the verification email
+           d) Either click the verification link OR copy the verification code
+           e) Complete the email verification process on the website
+    - step: '2.5'
+      intent: COLLECT_IDENTIFIERS
+      custom_fragment: |
+        5. After successful OAuth registration/login, collect unique account identifiers (user ID, account ID, profile URL, etc.)
+    - step: '2.6'
+      custom_fragment: |+
+        6. Output 'PHASE2: OAuth registration completed' with collected identifiers
+
+        PHASE 3 - Email/Password Login Test:
+        1. Return to the first browser window (from PHASE 1)
+        2. Navigate to the login page
+        3. Login using:
+           - Email: ${email}
+           - Password: ${password_registration}
+        4. After login, collect the same type of account identifiers as in PHASE 2
+        5. Output 'PHASE3: Email login completed' with collected identifiers
+
+    - step: 4
+      intent: COMPARE_IDENTIFIERS
+      custom_fragment: |+
+        PHASE 4 - Account Comparison:
+        1. Compare the account identifiers from PHASE 2 (OAuth) and PHASE 3 (Email/Password)
+        2. Check if they point to the SAME account by comparing:
+           - User ID
+           - Account ID
+           - Profile URL
+           - Username
+           - Any other unique identifiers
+        3. If identifiers are IDENTICAL (same account):
+           - Output 'RESULT: T2_VULN'
+           - This means OAuth and email registration created/linked to the same account (security issue)
+        4. If identifiers are DIFFERENT (different accounts):
+           - Output 'RESULT: T2_SAFE'
+           - This means OAuth and email registration created separate accounts (expected behavior)
+
+    - custom_fragment: |
+        IMPORTANT NOTES:
+    - intent: HANDLE_CAPTCHA
+      custom_fragment: |
+        - Handle all CAPTCHAs by calling 'python handler.py' if needed
+    - custom_fragment: |+
+        - For email verification, always check Gmail and complete the verification process
+        - Collect as many unique identifiers as possible for accurate comparison
+        - Be thorough in comparing accounts - don't rely only on display names
+        - Output clear status messages for each phase
+
+    - fragment_ref: VULN_ANALYSIS_T2
+    - fragment_ref: STRUCTURED_OUTPUT_T2
+  T3_T4:
+    name: Email Rebinding Security (T3 + T4)
+    description: Test old-email verification requirements and session persistence after email rebinding
+    source_prompt: savior/semantic_navigator/prompts/t3_t4.txt
+    output_schema: STRUCTURED_OUTPUT_T3_T4
+    vuln_analysis: VULN_ANALYSIS_T3_T4
+    dual_verdicts: true
+    verdict_fields:
+    - STATUS_T3
+    - STATUS_T4
+    composition:
+    - custom_fragment: |
+        ${auditor_context}
+
+        Open new browser,Navigate to ${target_url} and complete the following email rebinding security test:
+        If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+        MUST FINISH ALL PHASE!
+        PHASE 1 - Login:
+    - step: 1.1-1.2
+      intent: FIND_LOGIN_PAGE
+      custom_fragment: |
+        1. Navigate to ${target_url}
+        2. Find and click the login/sign-in button
+    - step: '1.3'
+      custom_fragment: |
+        3. Login or register using the following credentials :
+           - Email: ${email}
+           - Password: ${password}
+    - step: '1.4'
+      intent: HANDLE_CAPTCHA
+      custom_fragment: |
+        4. Complete any additional verification if required, use python handler.py to solve CAPTCHA.
+    - step: '1.5'
+      custom_fragment: |+
+        5. Confirm successful login or register by verifying you're on the logged-in dashboard/homepage
+
+    - step: 2
+      intent: CHANGE_IDENTIFIER
+      vars:
+        email: $email
+        new_email: $new_email
+      custom_fragment: |
+        PHASE 2 - Email Rebinding Process:
+        1. Look for account settings, profile settings, or user settings
+        2. Navigate through ALL possible menus to find the email change/rebind option
+        3. Once you find the email rebinding option, try every possible way to change/edit email from ${email} to ${new_email}
+    - step: 2.4-2.6
+      intent: COMPLETE_EMAIL_VERIFICATION
+      vars:
+        email: $email
+        password: $password
+        new_email: $new_email
+        new_password: $new_password
+      custom_fragment: "4. CRITICAL - Email Verification Process:\n   The system will send verification emails to BOTH email addresses. You MUST complete verification for BOTH:\n   \n   Step A - Verify OLD Email (${email}):\n   - Open Gmail in a new tab\n   - Login to Gmail with: ${email} / ${password}\n   - Check inbox for verification email\n   - Find and click the verification link OR extract the verification code and enter it on the website\n   \n   Step B - Verify NEW Email (${new_email}):\n   - Open Gmail in another new tab\n   - Login to Gmail with: ${new_email} / ${new_password}\n   - Check inbox for verification email\n   - Find and click the verification link OR extract the verification code and enter it on the website\n\n5. Complete the entire email change process using these verifications from both email addresses\n6. Use all necessary methods to complete email verification\n"
+    - step: '2.7'
+      custom_fragment: |+
+        7. Record the verification requirements:
+           - Did the system send verification to OLD email? (Yes/No)
+           - Did the system REQUIRE verification from OLD email? (Yes/No)
+           - Did the system send verification to NEW email? (Yes/No)
+           - Did the system REQUIRE verification from NEW email? (Yes/No)
+
+    - step: 3
+      intent: CHECK_SESSION_PERSISTENCE
+      custom_fragment: |+
+        PHASE 3 - Session Status Check (T4 Test):
+        1. After completing the email rebinding process (whether successful or not)
+        2. Check if the current logged-in session is still active:
+           - Refresh the current page
+           - Try to access account settings or other account-related pages
+           - Check if you're still logged in or if you were forced to log out
+        3. Record whether the session was terminated or remained active
+
+    - custom_fragment: |
+        RESULT DETERMINATION:
+
+        For T3 Test:
+        - If the system does NOT require OLD email verification (only requires NEW email verification), output: STATUS_T3: T3_VULN
+        - If the system REQUIRES OLD email verification (must verify from old email), output: STATUS_T3: T3_SAFE
+
+        For T4 Test:
+        - If the account was NOT forced to log out after email rebinding, output: STATUS_T4: T4_VULN
+        - If the account WAS forced to log out after email rebinding, output: STATUS_T4: T4_SAFE
+
+        CRITICAL NOTES:
+    - intent: HANDLE_CAPTCHA
+      custom_fragment: |
+        - When CAPTCHA appears, call 'python handler.py' to solve it and log the solving results
+    - custom_fragment: |+
+        - Be thorough in searching for the email rebinding option - try all settings menus
+        - MUST complete verification for BOTH old and new email addresses if verification emails are sent
+        - Document each step of the verification process clearly
+        - Pay attention to whether old email verification is REQUIRED vs OPTIONAL
+        - Clearly distinguish between email verification sent vs verification actually required
+        - Test the session status AFTER the rebinding process is complete
+
+        [CRITICAL - REPORTING FORMAT]
+        After completing all phases, you MUST output the following tags on separate lines so my script can parse them. DO NOT use bold or markdown on these tags:
+
+        STATUS_T3: [T3_VULN or T3_SAFE]
+        STATUS_T4: [T4_VULN or T4_SAFE]
+
+        Example of final output:
+        STATUS_T3: T3_VULN
+        STATUS_T4: T4_VULN
+
+    - fragment_ref: VULN_ANALYSIS_T3_T4
+    - fragment_ref: STRUCTURED_OUTPUT_T3_T4
+  T5:
+    name: Unauthorized IdP Association Manipulation
+    description: Check whether IdP binding and unbinding operations require reauthentication
+    source_prompt: savior/semantic_navigator/prompts/t5.txt
+    output_schema: STRUCTURED_OUTPUT_T5
+    vuln_analysis: VULN_ANALYSIS_T5
+    composition:
+    - custom_fragment: |+
+        ${auditor_context}
+
+    - intent: GLOBAL_BROWSER_RULES
+    - custom_fragment: |
+        GOAL: Open new browser, test whether IdP binding or unbinding operations require user reauthentication.
+
+        Google Credentials: Email=${google_email}, Password=${google_password}
+
+        TARGET: ${url}
+
+        TASK:
+        1. Visit the website
+    - step: 2-3
+      intent: PERFORM_OAUTH_LOGIN
+      vars:
+        google_email: $google_email
+        google_password: $google_password
+      custom_fragment: |
+        2. Find and click Google login/signin button (try all possible variations and locations)
+        3. Complete Google login with provided credentials
+    - step: 4-6
+      intent: LOCATE_BINDING_MANAGEMENT
+      custom_fragment: |
+        4. After login, find the settings/account/security page (try all possible paths: menus, URLs, links)
+        5. Look for third-party login, OAuth, social login, connected accounts, or IdP association management.
+        6. Test available IdP association operations without making unnecessary destructive changes:
+           - Binding: try to start adding/connecting a new IdP account. Stop at the final confirmation/authorization step before changing the account if possible.
+           - Unbinding: try to start removing/disconnecting an existing IdP account. Stop at the final confirmation step before destructive removal.
+           - Record whether the site requires password entry, MFA, fresh login, or another explicit reauthentication gate before the operation can proceed.
+           - If an operation is not offered, do not treat that absence as a vulnerability; explain it in the step log.
+    - custom_fragment: "\nCLASSIFICATION:\n- T5_N/A: Google OAuth login failed, or no IdP binding/unbinding management entry is available.\n- T5_VULN: Any available IdP binding or unbinding operation can proceed to completion or final confirmation without reauthentication.\n- T5_SAFE: Available IdP binding and unbinding operations require reauthentication before they can proceed.\nIMPORTANT: Stop at the final confirmation/authorization step before making account-changing or destructive changes unless the site already completed the operation without a separate confirmation.\n\nSCREENSHOT:\nAfter you determine the result:\n- If T5_SAFE: save to ${t5_safe_folder_abs}\n- If T5_VULN: save to ${t5_vuln_folder_abs}\n- If T5_N/A: save to ${t5_na_folder_abs}\n- Filename: ${domain}.png\n- Capture the page showing the reauthentication gate, final confirmation page, or absence of an IdP association management entry.\n\nOUTPUT FORMAT (plain text, NO markdown):\nRESULT: [T5_SAFE or T5_VULN or T5_N/A]\nREASON: [explain what you found and why this classification]\n\nIf T5_VULN:\nOAUTH_INFO_START\n[details about the binding/unbinding operation that proceeded without reauthentication]\nOAUTH_INFO_END\n"
+    - custom_fragment: |2+
+
+    - fragment_ref: VULN_ANALYSIS_T5
+    - custom_fragment: |+
+        STRATEGY: Be flexible and thorough. Try every reasonable way to find Google login, account/security settings, and IdP association controls. Use all Playwright capabilities to search, navigate, and extract evidence, while stopping before final destructive account changes whenever possible.
+
+    - fragment_ref: STRUCTURED_OUTPUT_T5
+  T6:
+    name: The Shadow Binding Attack
+    description: Check whether an old OAuth binding remains usable after changing the primary email
+    source_prompt: savior/semantic_navigator/prompts/t6.txt
+    output_schema: STRUCTURED_OUTPUT_T6
+    vuln_analysis: VULN_ANALYSIS_T6
+    composition:
+    - custom_fragment: |+
+        ${auditor_context}
+
+        Open new browser, Navigate to ${url} and find the login page.
+
+    - step: 1
+      intent: CHECK_OAUTH_AVAILABILITY
+      custom_fragment: |+
+        1. Check if Google OAuth login exists, if not output 'STATUS: T6_N/A' and exit.
+
+    - custom_fragment: |
+        2. If Google OAuth exists:
+    - step: '2.1'
+      intent: PERFORM_OAUTH_LOGIN
+      vars:
+        email_a: $email_a
+        password_a: $password_a
+      custom_fragment: |2
+           Step 1 - Login with Google account A (email: ${email_a}, password: ${password_a}) via OAuth
+    - step: '2.2'
+      intent: CHANGE_IDENTIFIER
+      vars:
+        email_a: $email_a
+        email_b: $email_b
+        password_b: $password_b
+      custom_fragment: |2
+           Step 2 - Navigate to account settings/profile and try every possible ways to change/edit email from A to B (email: ${email_b}, password: ${password_b}).
+    - step: '2.3'
+      intent: COMPLETE_EMAIL_VERIFICATION
+      vars:
+        email_a: $email_a
+        password_a: $password_a
+        email_b: $email_b
+        password_b: $password_b
+      custom_fragment: |2
+           Step 3 - CRITICAL: The service will send verification emails to BOTH email addresses. Open Gmail in new tabs:
+             (a) Login to Gmail as A (email: ${email_a}, password: ${password_a}), check inbox for verification email, find and click the verification link OR extract the verification code and enter it.
+             (b) Login to Gmail as B (email: ${email_b}, password: ${password_b}), check inbox for verification email, find and click the verification link OR extract the verification code and enter it.
+             Complete the email change process using these verifications.
+    - step: '2.4'
+      intent: LOGOUT
+      custom_fragment: |2
+           Step 4 - Logout.
+    - step: '2.5'
+      intent: PERFORM_OAUTH_LOGIN
+      vars:
+        email_b: $email_b
+        password_b: $password_b
+      custom_fragment: |2
+           Step 5 - Login using Google OAuth with account B (email: ${email_b}, password: ${password_b}), collect ANY available unique account identifiers that can distinguish this account.
+    - step: '2.6'
+      intent: LOGOUT
+      custom_fragment: |2
+           Step 6 - Logout.
+    - step: '2.7'
+      intent: PERFORM_OAUTH_LOGIN
+      vars:
+        email_a: $email_a
+        password_a: $password_a
+      custom_fragment: |2+
+           Step 7 - Login using Google OAuth with account A (email: ${email_a}, password: ${password_a}), collect identifiers again.
+
+    - step: 3
+      intent: COMPARE_IDENTIFIERS
+      custom_fragment: |+
+        3. If the collected identifiers from Step5 and Step7 are IDENTICAL, output 'STATUS: T6_VULN' else output 'STATUS: T6_SAFE'. DO NOT only rely on display name.
+
+    - intent: HANDLE_CAPTCHA
+      custom_fragment: |+
+        When CAPTCHA appears, call 'python handler.py', log results. Use all necessary methods to complete email verification.
+
+    - fragment_ref: VULN_ANALYSIS_T6
+    - custom_fragment: ''
+    - fragment_ref: STRUCTURED_OUTPUT_T6
+  T7:
+    name: First-party Registration DoS
+    description: Attempt duplicate registration with the same email to detect registration DoS risk
+    source_prompt: savior/semantic_navigator/prompts/t7.txt
+    output_schema: STRUCTURED_OUTPUT_T7
+    vuln_analysis: VULN_ANALYSIS_T7
+    composition:
+    - custom_fragment: |
+        ${auditor_context}
+
+        Open new browser,Navigate to ${target_url} and complete the following duplicate registration test:
+        If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+        PHASE 1 - First Registration Attempt:
+    - step: '1.1'
+      intent: FIND_REGISTRATION_PAGE
+      custom_fragment: |
+        1. Find the sign-up/register page
+    - step: 1.2-1.5
+      intent: FILL_REGISTRATION_FORM
+      vars:
+        email: $email
+        password_1: $password_1
+      custom_fragment: |
+        2. Attempt to register using email: ${email}
+        3. If password is required, set it to: ${password_1}
+        4. Complete the registration process until EITHER:
+           - Account is fully created, OR
+           - Email verification is required (stop here, do not verify)
+        5. Note the registration outcome
+    - step: 2
+      intent: DETECT_DUPLICATE_REGISTRATION
+      vars:
+        target_url: $target_url
+        email: $email
+        password_2: $password_2
+      custom_fragment: |2+
+
+        PHASE 2 - Second Registration Attempt:
+        1. Open ${target_url} in a fresh browser instance
+        2. Navigate to the sign-up/register page again
+        3. Attempt to register using the SAME email: ${email}
+        4. If password is required, use: ${password_2}
+        5. Observe the system response
+
+    - custom_fragment: |
+        RESULT DETERMINATION:
+        - If the system allows proceeding with registration WITHOUT any duplicate email warning, output: STATUS: T7_VULN (vulnerable to registration DoS - attacker can block legitimate users)
+        - If the system can't register, or shows ANY message indicating the email already exists, is already registered, or is already in use, output: STATUS: T7_SAFE (protected against registration DoS)
+
+        CRITICAL NOTES:
+    - intent: HANDLE_CAPTCHA
+      custom_fragment: |
+        - When CAPTCHA appears, call 'handler.py' to solve it and log the solving results
+    - custom_fragment: |
+        - Do NOT complete email verification in Phase 1
+        - Focus on detecting whether the system prevents duplicate email registration
+        - Record all relevant error messages or warnings displayed
+    - custom_fragment: |2+
+
+    - fragment_ref: VULN_ANALYSIS_T7
+    - custom_fragment: ''
+    - fragment_ref: STRUCTURED_OUTPUT_T7
+fragments:
+  VULN_ANALYSIS_T1_STEP1: |+
+    IF STATUS is SUCCESS or DOUBT, you MUST also output vulnerability analysis:
+
+    VULN_ANALYSIS_START
+    Attack Path:
+    1. [Describe: How you found the registration page]
+    2. [Describe: What fields you filled and how]
+    3. [Describe: What happened after form submission]
+    4. [Describe: How you accessed dashboard/settings without email verification]
+    5. [Describe: What you observed about email verification status]
+    Missing Security Check: [What verification was absent - e.g., "No email verification required before account activation"]
+    Proof of Vulnerability: [What confirmed the issue - e.g., "Email displayed in settings with no verification badge or pending status"]
+    VULN_ANALYSIS_END
+
+  STRUCTURED_OUTPUT_T1_STEP1: |
+    --- OUTPUT REQUIREMENTS ---
+
+    After completing all steps above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS, USER_INFO, and VULN_ANALYSIS blocks above.
+
+    STEP LOG INSTRUCTIONS:
+    For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+    BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+    <observations>
+    {
+      "task_id": "T1_STEP1",
+      "target_url": "<the exact URL tested>",
+      "steps_completed": "<array of integer step numbers successfully completed, e.g. [1,2,3,4,5,6,7,8,9]>",
+      "execution_status": "<one of: completed, interrupted, failed>",
+      "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+      "screenshots": "<array of screenshot filenames saved during this test>",
+      "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+      "task_specific": {
+        "registration_completed": "<boolean: true if registration form was submitted and account was created>",
+        "verification_required": "<boolean: true if the site required email verification before granting account access>",
+        "verification_text_found": "<boolean: true if any text containing 'verify', 'unverified', or 'verification' was found on the settings/profile page>",
+        "dashboard_accessible": "<boolean: true if dashboard/home page was accessible after registration without verifying email>",
+        "email_visible_in_settings": "<boolean: true if the registered email was visible in account settings>"
+      }
+    }
+    </observations>
+
+    BLOCK 2 - Your verdict:
+
+    <verdict>
+    STATUS: <one of SUCCESS, DOUBT, FAIL>
+    CONFIDENCE: <one of high, medium, low>
+    REASONING: <one sentence explaining why you chose this status>
+    </verdict>
+
+    BLOCK 3 - Evidence (only if STATUS is SUCCESS or DOUBT, reuse the VULN_ANALYSIS block):
+
+    <evidence>
+    VULN_ANALYSIS_START
+    (same content as the VULN_ANALYSIS block you already output above)
+    VULN_ANALYSIS_END
+    </evidence>
+
+    If STATUS is FAIL, still output:
+    <evidence>
+    None
+    </evidence>
+  STRUCTURED_OUTPUT_T1_STEP2: |
+    --- OUTPUT REQUIREMENTS ---
+
+    After completing all steps above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS, OAUTH_IDPS, and ACCOUNT_INFO blocks above.
+
+    STEP LOG INSTRUCTIONS:
+    For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+    BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+    <observations>
+    {
+      "task_id": "T1_STEP2",
+      "target_url": "<the exact URL tested>",
+      "steps_completed": "<array of integer step numbers successfully completed, e.g. [1,2,3,4,5,6,7,8]>",
+      "execution_status": "<one of: completed, interrupted, failed>",
+      "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+      "screenshots": "<array of screenshot filenames saved during this test>",
+      "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+      "task_specific": {
+        "oauth_login_succeeded": "<boolean: true if Google OAuth login completed and profile page was accessible>",
+        "idps_found": "<array of OAuth provider names found on the login page, e.g. ['Google', 'Facebook', 'Apple']>",
+        "account_info": "<object mapping field names to values extracted from the account/profile page, e.g. {'Display Name': 'John', 'Email': 'user@example.com'}>",
+        "two_factor_required": "<boolean: true if 2FA/phone/SMS verification was required and blocked login>",
+        "fail_reason": "<string: reason for failure if STATUS is FAIL, otherwise null>"
+      }
+    }
+    </observations>
+
+    BLOCK 2 - Your verdict:
+
+    <verdict>
+    STATUS: <one of SUCCESS, FAIL>
+    CONFIDENCE: <one of high, medium, low>
+    REASONING: <one sentence explaining why you chose this status>
+    </verdict>
+
+    BLOCK 3 - Evidence:
+
+    <evidence>
+    None
+    </evidence>
+  VULN_ANALYSIS_T2: |+
+    IF RESULT is T2_VULN, you MUST also output vulnerability analysis:
+
+    VULN_ANALYSIS_START
+    Attack Path:
+    1. [Describe: How you registered with email (Phase 1)]
+    2. [Describe: What verification was required/shown]
+    3. [Describe: How you performed OAuth login (Phase 2)]
+    4. [Describe: How OAuth bypassed/linked to the unverified account]
+    5. [Describe: How you confirmed both methods access same account (Phase 3-4)]
+    Missing Security Check: [e.g., "OAuth login linked to unverified email registration without requiring email ownership proof"]
+    Proof of Vulnerability: [e.g., "User ID from OAuth login matches User ID from email/password login: both are 123456"]
+    Account Identifiers Compared: [List the matching identifiers]
+    VULN_ANALYSIS_END
+
+  STRUCTURED_OUTPUT_T2: |
+    --- OUTPUT REQUIREMENTS ---
+
+    After completing all phases above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the RESULT, PHASE, and VULN_ANALYSIS blocks above.
+
+    STEP LOG INSTRUCTIONS:
+    For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+    BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+    <observations>
+    {
+      "task_id": "T2",
+      "target_url": "<the exact URL tested>",
+      "steps_completed": "<array of phase numbers completed, e.g. [1,2,3,4]>",
+      "execution_status": "<one of: completed, interrupted, failed>",
+      "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+      "screenshots": "<array of screenshot filenames saved during this test>",
+      "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+      "task_specific": {
+        "registration_verification_required": "<boolean: true if normal email registration required email verification before account access>",
+        "oauth_registration_completed": "<boolean: true if Google OAuth registration/login completed successfully>",
+        "email_login_completed": "<boolean: true if email/password login succeeded in Phase 3>",
+        "oauth_identifiers": "<object mapping identifier field names to values observed after OAuth login, e.g. {'user_id': '123', 'profile_url': '/user/123'}>",
+        "email_identifiers": "<object mapping same identifier field names to values observed after email login>",
+        "is_identifiers_identical": "<boolean: true if OAuth and email login identifiers point to the same account>"
+      }
+    }
+    </observations>
+
+    BLOCK 2 - Your verdict:
+
+    <verdict>
+    RESULT: <one of T2_VULN, T2_SAFE, T2_N/A>
+    CONFIDENCE: <one of high, medium, low>
+    REASONING: <one sentence explaining why you chose this result>
+    </verdict>
+
+    BLOCK 3 - Evidence (only if RESULT is T2_VULN, reuse the VULN_ANALYSIS block):
+
+    <evidence>
+    VULN_ANALYSIS_START
+    (same content as the VULN_ANALYSIS block you already output above)
+    VULN_ANALYSIS_END
+    </evidence>
+
+    If RESULT is not T2_VULN, still output:
+    <evidence>
+    None
+    </evidence>
+  VULN_ANALYSIS_T3_T4: |+
+    IF STATUS_T3 is T3_VULN, output T3 vulnerability analysis:
+
+    T3_VULN_ANALYSIS_START
+    Attack Path:
+    1. [Describe: How you logged in]
+    2. [Describe: How you found email change option]
+    3. [Describe: What verification was required for email change]
+    4. [Describe: Whether old email verification was required or skipped]
+    Missing Security Check: [e.g., "Old email verification not required - only new email needed confirmation"]
+    Proof of Vulnerability: [e.g., "Email changed from A to B without any confirmation sent to original email A"]
+    T3_VULN_ANALYSIS_END
+
+    IF STATUS_T4 is T4_VULN, output T4 vulnerability analysis:
+
+    T4_VULN_ANALYSIS_START
+    Attack Path:
+    1. [Describe: State before email change - logged in as user]
+    2. [Describe: Email change process completed]
+    3. [Describe: Session status after email change]
+    Missing Security Check: [e.g., "Session not terminated after credential change"]
+    Proof of Vulnerability: [e.g., "After changing email, page refresh still showed logged-in state, could access /settings without re-authentication"]
+    T4_VULN_ANALYSIS_END
+
+  STRUCTURED_OUTPUT_T3_T4: |
+    --- OUTPUT REQUIREMENTS ---
+
+    After completing all phases above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS_T3, STATUS_T4, and VULN_ANALYSIS blocks above.
+
+    STEP LOG INSTRUCTIONS:
+    For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+    BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+    <observations>
+    {
+      "task_id": "T3_T4",
+      "target_url": "<the exact URL tested>",
+      "steps_completed": "<array of phase numbers completed, e.g. [1,2,3]>",
+      "execution_status": "<one of: completed, interrupted, failed>",
+      "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+      "screenshots": "<array of screenshot filenames saved during this test>",
+      "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+      "task_specific": {
+        "login_succeeded": "<boolean: true if login with provided credentials succeeded>",
+        "email_change_found": "<boolean: true if email change/rebind option was found in settings>",
+        "email_change_succeeded": "<boolean: true if email was successfully changed from old to new>",
+        "old_email_verification_required": "<boolean: true if the site REQUIRED verification from the OLD email during email change>",
+        "new_email_verification_required": "<boolean: true if the site REQUIRED verification from the NEW email during email change>",
+        "session_persisted_after_change": "<boolean: true if the logged-in session remained active after email change (page refresh still shows logged-in state)>"
+      }
+    }
+    </observations>
+
+    BLOCK 2 - Your verdict:
+
+    <verdict>
+    STATUS_T3: <one of T3_VULN, T3_SAFE>
+    STATUS_T4: <one of T4_VULN, T4_SAFE>
+    CONFIDENCE: <one of high, medium, low>
+    REASONING: <one sentence explaining your T3 and T4 verdicts>
+    </verdict>
+
+    BLOCK 3 - Evidence (reuse any VULN_ANALYSIS blocks you already output above):
+
+    <evidence>
+    (Include T3_VULN_ANALYSIS and/or T4_VULN_ANALYSIS blocks if applicable, otherwise: None)
+    </evidence>
+  VULN_ANALYSIS_T5: |+
+    IF RESULT is T5_VULN, you MUST also output vulnerability analysis:
+
+    VULN_ANALYSIS_START
+    Attack Path:
+    1. [Describe: How you logged in via Google OAuth]
+    2. [Describe: How you navigated to account/security settings]
+    3. [Describe: Which IdP binding or unbinding operation you tested]
+    4. [Describe: How far the operation proceeded without password, MFA, fresh login, or another reauthentication gate]
+    Missing Security Check: [e.g., "IdP binding/unbinding operation did not require reauthentication"]
+    Proof of Vulnerability: [e.g., "The disconnect Google flow reached final confirmation without asking for password or MFA"]
+    Settings URLs Checked: [List all URLs/paths you tried]
+    VULN_ANALYSIS_END
+
+  STRUCTURED_OUTPUT_T5: |
+    --- OUTPUT REQUIREMENTS ---
+
+    After completing all steps above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the RESULT and VULN_ANALYSIS blocks above.
+
+    STEP LOG INSTRUCTIONS:
+    For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+    BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+    <observations>
+    {
+      "task_id": "T5",
+      "target_url": "<the exact URL tested>",
+      "steps_completed": "<array of integer step numbers completed, e.g. [1,2,3,4,5,6]>",
+      "execution_status": "<one of: completed, interrupted, failed>",
+      "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+      "screenshots": "<array of screenshot filenames saved during this test>",
+      "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+      "task_specific": {
+        "oauth_login_succeeded": "<boolean: true if Google OAuth login completed successfully>",
+        "binding_management_available": "<boolean: true if at least one IdP binding or unbinding operation entry was available to test>",
+        "binding_requires_reauth": "<boolean: false only if an available binding/add/connect operation could proceed to completion or final confirmation without reauthentication; true if it required reauthentication or no binding operation was offered>",
+        "unbinding_requires_reauth": "<boolean: false only if an available unbinding/remove/disconnect operation could proceed to completion or final confirmation without reauthentication; true if it required reauthentication or no unbinding operation was offered>"
+      }
+    }
+    </observations>
+
+    BLOCK 2 - Your verdict:
+
+    <verdict>
+    RESULT: <one of T5_SAFE, T5_VULN, T5_N/A>
+    CONFIDENCE: <one of high, medium, low>
+    REASONING: <one sentence explaining why you chose this result>
+    </verdict>
+
+    BLOCK 3 - Evidence (only if RESULT is T5_VULN):
+
+    <evidence>
+    VULN_ANALYSIS_START
+    (same content as the VULN_ANALYSIS block you already output above)
+    VULN_ANALYSIS_END
+    </evidence>
+
+    If RESULT is T5_SAFE or T5_N/A, still output:
+    <evidence>
+    None
+    </evidence>
+  VULN_ANALYSIS_T6: |+
+    IF STATUS is T6_VULN, you MUST also output vulnerability analysis:
+
+    VULN_ANALYSIS_START
+    Attack Path:
+    1. [Describe: How you logged in with OAuth A]
+    2. [Describe: How you changed email from A to B]
+    3. [Describe: How you logged in with OAuth B and what identifiers you collected]
+    4. [Describe: How you logged in with OAuth A again and what identifiers you collected]
+    5. [Describe: How you confirmed both OAuth accounts access same website account]
+    Missing Security Check: [e.g., "Email change did not unbind original OAuth, creating shadow binding"]
+    Proof of Vulnerability: [e.g., "OAuth A identifiers: UserID=123, OAuth B identifiers: UserID=123 - identical"]
+    Identifiers Collected: [List all identifiers from both OAuth logins]
+    VULN_ANALYSIS_END
+
+  STRUCTURED_OUTPUT_T6: |
+    --- OUTPUT REQUIREMENTS ---
+
+    After completing all steps above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS and VULN_ANALYSIS blocks above.
+
+    STEP LOG INSTRUCTIONS:
+    For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+    BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+    <observations>
+    {
+      "task_id": "T6",
+      "target_url": "<the exact URL tested>",
+      "steps_completed": "<array of integer step numbers successfully completed, e.g. [1,2,3,4,5,6,7]>",
+      "execution_status": "<one of: completed, interrupted, failed>",
+      "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+      "screenshots": "<array of screenshot filenames saved during this test>",
+      "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+      "task_specific": {
+        "has_google_oauth": "<boolean: true if Google OAuth login button was found on the site>",
+        "oauth_a_login_succeeded": "<boolean: true if OAuth login with account A completed successfully>",
+        "email_change_succeeded": "<boolean: true if email was successfully changed from A to B>",
+        "old_email_verification_required": "<boolean: true if the site required verification from the OLD email during email change>",
+        "new_email_verification_required": "<boolean: true if the site required verification from the NEW email during email change>",
+        "first_logout_succeeded": "<boolean: true if logout after email change completed>",
+        "oauth_b_login_succeeded": "<boolean: true if OAuth login with account B completed successfully>",
+        "oauth_b_identifiers": "<object mapping identifier field names to observed values after logging in with OAuth B; use the most stable unique identifiers (user ID, UUID, account number), NOT display names>",
+        "second_logout_succeeded": "<boolean: true if second logout completed>",
+        "oauth_a_relogin_succeeded": "<boolean: true if OAuth login with account A (after email change) completed successfully>",
+        "oauth_a_identifiers": "<object mapping same identifier field names to observed values after logging in with OAuth A post-change; same keys as oauth_b_identifiers>",
+        "is_identifiers_identical": "<boolean: true if OAuth A and OAuth B identifiers point to the same account>"
+      }
+    }
+    </observations>
+
+    BLOCK 2 - Your verdict:
+
+    <verdict>
+    STATUS: <one of T6_VULN, T6_SAFE, T6_N/A>
+    CONFIDENCE: <one of high, medium, low>
+    REASONING: <one sentence explaining why you chose this status>
+    </verdict>
+
+    BLOCK 3 - Evidence (only if STATUS is T6_VULN, reuse the VULN_ANALYSIS block):
+
+    <evidence>
+    VULN_ANALYSIS_START
+    (same content as the VULN_ANALYSIS block you already output above)
+    VULN_ANALYSIS_END
+    </evidence>
+
+    If STATUS is not T6_VULN, still output:
+    <evidence>
+    None
+    </evidence>
+  VULN_ANALYSIS_T7: |+
+    IF STATUS is T7_VULN, you MUST also output vulnerability analysis:
+
+    VULN_ANALYSIS_START
+    Attack Path:
+    1. [Describe: First registration attempt - what happened]
+    2. [Describe: Second registration attempt with same email - what happened]
+    3. [Describe: System response to duplicate email]
+    Missing Security Check: [e.g., "System does not check if email is already registered before allowing registration to proceed"]
+    Proof of Vulnerability: [e.g., "Second registration with same email proceeded to next step without any 'email already exists' warning"]
+    System Response Observed: [Exact message or behavior seen]
+    VULN_ANALYSIS_END
+
+  STRUCTURED_OUTPUT_T7: |
+    --- OUTPUT REQUIREMENTS ---
+
+    After completing all phases above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS and VULN_ANALYSIS blocks above.
+
+    STEP LOG INSTRUCTIONS:
+    For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+    BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+    <observations>
+    {
+      "task_id": "T7",
+      "target_url": "<the exact URL tested>",
+      "steps_completed": "<array of phase numbers completed, e.g. [1,2]>",
+      "execution_status": "<one of: completed, interrupted, failed>",
+      "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+      "screenshots": "<array of screenshot filenames saved during this test>",
+      "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+      "task_specific": {
+        "first_registration_outcome": "<string: describe what happened - e.g. 'account created', 'email verification pending', 'registration failed'>",
+        "second_registration_allowed": "<boolean: true if the second registration attempt with same email was allowed to proceed without any duplicate warning>",
+        "duplicate_error_shown": "<boolean: true if any 'email already exists' or 'already registered' error was shown>",
+        "error_message_text": "<string: exact error message text shown for duplicate registration, or null if none>"
+      }
+    }
+    </observations>
+
+    BLOCK 2 - Your verdict:
+
+    <verdict>
+    STATUS: <one of T7_VULN, T7_SAFE>
+    CONFIDENCE: <one of high, medium, low>
+    REASONING: <one sentence explaining why you chose this status>
+    </verdict>
+
+    BLOCK 3 - Evidence (only if STATUS is T7_VULN):
+
+    <evidence>
+    VULN_ANALYSIS_START
+    (same content as the VULN_ANALYSIS block you already output above)
+    VULN_ANALYSIS_END
+    </evidence>
+
+    If STATUS is T7_SAFE, still output:
+    <evidence>
+    None
+    </evidence>

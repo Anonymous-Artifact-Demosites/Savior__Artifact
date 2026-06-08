@@ -1,0 +1,107 @@
+$auditor_context
+
+Use Playwright MCP tool. DO NOT generate code files. DO NOT use JavaScript.
+If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+GOAL: Open new browser, test whether IdP binding or unbinding operations require user reauthentication.
+
+Google Credentials: Email=$google_email, Password=$google_password
+
+TARGET: $url
+
+TASK:
+1. Visit the website
+2. Find and click Google login/signin button (try all possible variations and locations)
+3. Complete Google login with provided credentials
+4. After login, find the settings/account/security page (try all possible paths: menus, URLs, links)
+5. Look for third-party login, OAuth, social login, connected accounts, or IdP association management.
+6. Test available IdP association operations without making unnecessary destructive changes:
+   - Binding: try to start adding/connecting a new IdP account. Stop at the final confirmation/authorization step before changing the account if possible.
+   - Unbinding: try to start removing/disconnecting an existing IdP account. Stop at the final confirmation step before destructive removal.
+   - Record whether the site requires password entry, MFA, fresh login, or another explicit reauthentication gate before the operation can proceed.
+   - If an operation is not offered, do not treat that absence as a vulnerability; explain it in the step log.
+
+CLASSIFICATION:
+- T5_N/A: Google OAuth login failed, or no IdP binding/unbinding management entry is available.
+- T5_VULN: Any available IdP binding or unbinding operation can proceed to completion or final confirmation without reauthentication.
+- T5_SAFE: Available IdP binding and unbinding operations require reauthentication before they can proceed.
+IMPORTANT: Stop at the final confirmation/authorization step before making account-changing or destructive changes unless the site already completed the operation without a separate confirmation.
+
+SCREENSHOT:
+After you determine the result:
+- If T5_SAFE: save to $t5_safe_folder_abs
+- If T5_VULN: save to $t5_vuln_folder_abs
+- If T5_N/A: save to $t5_na_folder_abs
+- Filename: $domain.png
+- Capture the page showing the reauthentication gate, final confirmation page, or absence of an IdP association management entry.
+
+OUTPUT FORMAT (plain text, NO markdown):
+RESULT: [T5_SAFE or T5_VULN or T5_N/A]
+REASON: [explain what you found and why this classification]
+
+If T5_VULN:
+OAUTH_INFO_START
+[details about the binding/unbinding operation that proceeded without reauthentication]
+OAUTH_INFO_END
+
+IF RESULT is T5_VULN, you MUST also output vulnerability analysis:
+
+VULN_ANALYSIS_START
+Attack Path:
+1. [Describe: How you logged in via Google OAuth]
+2. [Describe: How you navigated to account/security settings]
+3. [Describe: Which IdP binding or unbinding operation you tested]
+4. [Describe: How far the operation proceeded without password, MFA, fresh login, or another reauthentication gate]
+Missing Security Check: [e.g., "IdP binding/unbinding operation did not require reauthentication"]
+Proof of Vulnerability: [e.g., "The disconnect Google flow reached final confirmation without asking for password or MFA"]
+Settings URLs Checked: [List all URLs/paths you tried]
+VULN_ANALYSIS_END
+
+STRATEGY: Be flexible and thorough. Try every reasonable way to find Google login, account/security settings, and IdP association controls. Use all Playwright capabilities to search, navigate, and extract evidence, while stopping before final destructive account changes whenever possible.
+
+--- OUTPUT REQUIREMENTS ---
+
+After completing all steps above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the RESULT and VULN_ANALYSIS blocks above.
+
+STEP LOG INSTRUCTIONS:
+For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+<observations>
+{
+  "task_id": "T5",
+  "target_url": "<the exact URL tested>",
+  "steps_completed": "<array of integer step numbers completed, e.g. [1,2,3,4,5,6]>",
+  "execution_status": "<one of: completed, interrupted, failed>",
+  "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+  "screenshots": "<array of screenshot filenames saved during this test>",
+  "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+  "task_specific": {
+    "oauth_login_succeeded": "<boolean: true if Google OAuth login completed successfully>",
+    "binding_management_available": "<boolean: true if at least one IdP binding or unbinding operation entry was available to test>",
+    "binding_requires_reauth": "<boolean: false only if an available binding/add/connect operation could proceed to completion or final confirmation without reauthentication; true if it required reauthentication or no binding operation was offered>",
+    "unbinding_requires_reauth": "<boolean: false only if an available unbinding/remove/disconnect operation could proceed to completion or final confirmation without reauthentication; true if it required reauthentication or no unbinding operation was offered>"
+  }
+}
+</observations>
+
+BLOCK 2 - Your verdict:
+
+<verdict>
+RESULT: <one of T5_SAFE, T5_VULN, T5_N/A>
+CONFIDENCE: <one of high, medium, low>
+REASONING: <one sentence explaining why you chose this result>
+</verdict>
+
+BLOCK 3 - Evidence (only if RESULT is T5_VULN):
+
+<evidence>
+VULN_ANALYSIS_START
+(same content as the VULN_ANALYSIS block you already output above)
+VULN_ANALYSIS_END
+</evidence>
+
+If RESULT is T5_SAFE or T5_N/A, still output:
+<evidence>
+None
+</evidence>

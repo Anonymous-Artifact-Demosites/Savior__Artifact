@@ -1,0 +1,451 @@
+version: 1
+description: |
+  Reusable intent definitions extracted from SAVIOR semantic navigator prompt templates. Prompt fragments preserve source wording except for variable normalization to ${var_name} and handler.py CAPTCHA wording.
+source_prompts:
+- savior/semantic_navigator/prompts/t1_step1.txt
+- savior/semantic_navigator/prompts/t1_step2.txt
+- savior/semantic_navigator/prompts/t2.txt
+- savior/semantic_navigator/prompts/t3_t4.txt
+- savior/semantic_navigator/prompts/t5.txt
+- savior/semantic_navigator/prompts/t6.txt
+- savior/semantic_navigator/prompts/t7.txt
+intents:
+- id: GLOBAL_BROWSER_RULES
+  category: directive
+  description: Shared browser automation constraints used before task-specific actions.
+  ui_patterns: []
+  used_by:
+  - T1_STEP1
+  - T1_STEP2
+  - T2
+  - T3_T4
+  - T5
+  - T6
+  - T7
+  source:
+  - savior/semantic_navigator/prompts/t1_step1.txt
+  - savior/semantic_navigator/prompts/t1_step2.txt
+  - savior/semantic_navigator/prompts/t5.txt
+  notes: Most complete wording is from t1_step1.txt and t5.txt; t1_step2.txt has a shorter Google-login-specific variant.
+  prompt_fragment: |
+    Use Playwright MCP tool. DO NOT generate code files. DO NOT use JavaScript.
+    If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+- id: HANDLE_CAPTCHA
+  category: directive
+  description: Detect CAPTCHA challenges and route them through the configured resolver.
+  ui_patterns:
+  - captcha
+  - CAPTCHA
+  - I'm not a robot
+  - reCAPTCHA
+  - hCaptcha
+  - verification challenge
+  - security check
+  used_by:
+  - T1_STEP1
+  - T1_STEP2
+  - T2
+  - T3_T4
+  - T6
+  - T7
+  source:
+  - savior/semantic_navigator/prompts/t1_step1.txt
+  - savior/semantic_navigator/prompts/t1_step2.txt
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t3_t4.txt
+  - savior/semantic_navigator/prompts/t6.txt
+  - savior/semantic_navigator/prompts/t7.txt
+  notes: Uses the t1_step1.txt wording with the handler.py replacement applied.
+  prompt_fragment: |
+    When encountering captcha, MUST use bash to call handler.py to solve the captcha on the webpage. Do not create code. Make sure the captcha on the webpage is solved successfully.
+- id: FIND_REGISTRATION_PAGE
+  category: interaction
+  description: Locate the target site's sign-up or registration entry point.
+  ui_patterns:
+  - Sign up
+  - Sign Up
+  - Register
+  - Create account
+  - Create an account
+  - Join
+  - Get started
+  used_by:
+  - T1_STEP1
+  - T2
+  - T7
+  source:
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t7.txt
+  - savior/semantic_navigator/prompts/t1_step1.txt
+  notes: Most general source wording is from t2.txt.
+  prompt_fragment: |
+    Find the registration or sign-up page on the target site.
+- id: FILL_REGISTRATION_FORM
+  category: interaction
+  description: Fill and submit a registration form using supplied credentials.
+  ui_patterns:
+  - Email
+  - Password
+  - Username
+  - Create account
+  - Sign up
+  - Submit
+  - Continue
+  used_by:
+  - T1_STEP1
+  - T2
+  - T7
+  source:
+  - savior/semantic_navigator/prompts/t1_step1.txt
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t7.txt
+  notes: Most complete form-fill workflow is from t1_step1.txt.
+  prompt_fragment: |
+    Locate the registration form on the current page. Fill in the required fields
+    using the provided credentials (email, password, username if needed).
+    Submit the form and handle any post-registration steps such as profile
+    completion prompts.
+- id: CHECK_EMAIL_VERIFICATION
+  category: interaction
+  description: Check whether email verification is required, visible, or blocking account access.
+  ui_patterns:
+  - verify
+  - verified
+  - unverified
+  - verification
+  - confirm your email
+  - check your email
+  - pending verification
+  used_by:
+  - T1_STEP1
+  - T2
+  - T7
+  source:
+  - savior/semantic_navigator/prompts/t1_step1.txt
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t7.txt
+  notes: Most complete status-check workflow is from t1_step1.txt.
+  prompt_fragment: |
+    Search the current page for any indication of email verification status.
+    Look for text or UI elements containing keywords such as "verify", "unverified",
+    "verification", "confirm your email", warning banners, alert boxes, or colored
+    badges near the email field. Check for buttons with "verify" text.
+    Record whether email verification appears to be required, pending, or absent.
+- id: FIND_LOGIN_PAGE
+  category: interaction
+  description: Locate and open the target site's login or sign-in page.
+  ui_patterns:
+  - Log in
+  - Login
+  - Sign in
+  - Sign In
+  - Continue
+  - Account
+  used_by:
+  - T1_STEP2
+  - T2
+  - T3_T4
+  - T5
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t3_t4.txt
+  - savior/semantic_navigator/prompts/t1_step2.txt
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t5.txt
+  - savior/semantic_navigator/prompts/t6.txt
+  notes: Login-button wording is clearest in t3_t4.txt.
+  prompt_fragment: |
+    Navigate to the target site and find the login or sign-in page.
+    Locate and click the login/sign-in button or link.
+- id: PERFORM_OAUTH_LOGIN
+  category: interaction
+  description: Complete a Google OAuth login flow with provided Google credentials.
+  ui_patterns:
+  - Sign in with Google
+  - Continue with Google
+  - Login with Google
+  - Log in with Google
+  - Google
+  - OAuth
+  used_by:
+  - T1_STEP2
+  - T2
+  - T5
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t1_step2.txt
+  - savior/semantic_navigator/prompts/t5.txt
+  - savior/semantic_navigator/prompts/t6.txt
+  notes: Most explicit OAuth button and credential wording is from t2.txt.
+  prompt_fragment: |
+    2. Find and click the 'Sign in with Google' or 'Continue with Google' button
+    3. Complete Google OAuth login using:
+       - Google Account Email: ${email}
+       - Google Account Password: ${password_gmail}
+- id: NAVIGATE_TO_SETTINGS
+  category: interaction
+  description: Find and navigate to account, profile, or settings pages after login.
+  ui_patterns:
+  - Settings
+  - Account
+  - Profile
+  - User settings
+  - Account settings
+  - Manage account
+  - Security
+  used_by:
+  - T1_STEP1
+  - T1_STEP2
+  - T3_T4
+  - T5
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t1_step1.txt
+  - savior/semantic_navigator/prompts/t1_step2.txt
+  - savior/semantic_navigator/prompts/t3_t4.txt
+  - savior/semantic_navigator/prompts/t5.txt
+  - savior/semantic_navigator/prompts/t6.txt
+  notes: Most complete settings navigation fallback list is from t1_step1.txt.
+  prompt_fragment: |
+    Navigate to the account settings, profile, or account management page.
+    Try multiple approaches until found:
+    a) Click user avatar or profile icon, then look for Settings/Account/Profile
+    b) Look for Settings, Account, or Profile buttons/links on the page
+    c) Try common URL paths: /settings, /account, /profile, /user/settings
+    d) Search the page text for "setting", "account", "profile"
+- id: EXTRACT_ACCOUNT_INFO
+  category: interaction
+  description: Extract visible account profile fields such as email, user ID, plan, or subscription.
+  ui_patterns:
+  - Email
+  - User ID
+  - Account ID
+  - Display Name
+  - Profile
+  - Plan
+  - Subscription
+  - License
+  used_by:
+  - T1_STEP1
+  - T1_STEP2
+  - T5
+  source:
+  - savior/semantic_navigator/prompts/t1_step2.txt
+  - savior/semantic_navigator/prompts/t1_step1.txt
+  - savior/semantic_navigator/prompts/t5.txt
+  notes: Most general account-info extraction wording is from t1_step2.txt.
+  prompt_fragment: |
+    Extract all visible account information from the profile or settings page,
+    including but not limited to: display name, email, user ID, username,
+    plan/subscription, account type, and any other profile fields with values.
+- id: CHANGE_IDENTIFIER
+  category: interaction
+  description: Change or rebind the primary email identifier from an old address to a new address.
+  ui_patterns:
+  - Email
+  - Change email
+  - Edit email
+  - Update email
+  - Primary email
+  - Rebind
+  - Save
+  used_by:
+  - T3_T4
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t3_t4.txt
+  - savior/semantic_navigator/prompts/t6.txt
+  notes: Most complete email rebinding search workflow is from t3_t4.txt.
+  prompt_fragment: |
+    Find the primary email or account identifier setting.
+    Attempt to change or update the identifier from the current value to the
+    new value using the provided credentials and record what verification is
+    required.
+- id: COMPLETE_EMAIL_VERIFICATION
+  category: interaction
+  description: Complete email verification by opening Gmail, finding a verification email, and using the link or code.
+  ui_patterns:
+  - Verify email
+  - Verification code
+  - Confirm email
+  - Open Gmail
+  - Inbox
+  - Resend email
+  - Enter code
+  used_by:
+  - T2
+  - T3_T4
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t3_t4.txt
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t6.txt
+  notes: Most complete two-address verification workflow is from t3_t4.txt.
+  prompt_fragment: |
+    Open the relevant email inbox, find verification messages, and complete
+    the verification flow by clicking the link or entering the code shown in
+    the email.
+- id: LOGOUT
+  category: interaction
+  description: Log out of the current authenticated website session.
+  ui_patterns:
+  - Log out
+  - Logout
+  - Sign out
+  - Sign Out
+  - Account menu
+  - Profile menu
+  used_by:
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t6.txt
+  prompt_fragment: |
+    Log out of the current authenticated session.
+- id: COLLECT_IDENTIFIERS
+  category: interaction
+  description: Collect stable unique account identifiers after login or registration.
+  ui_patterns:
+  - User ID
+  - Account ID
+  - Profile URL
+  - Username
+  - UUID
+  - Account number
+  used_by:
+  - T2
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t6.txt
+  notes: General identifier wording is from t2.txt; t6.txt additionally emphasizes stable identifiers over display names.
+  prompt_fragment: |
+    After successful login, collect all available unique account identifiers
+    that can distinguish this account: user ID, account ID, profile URL,
+    username, UUID, or account number. Prefer stable identifiers over
+    display names.
+- id: COMPARE_IDENTIFIERS
+  category: interaction
+  description: Compare identifiers gathered from two sessions to determine whether they refer to the same account.
+  ui_patterns:
+  - User ID
+  - Account ID
+  - Profile URL
+  - Username
+  - Account
+  used_by:
+  - T2
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t6.txt
+  notes: Most complete comparison criteria are from t2.txt.
+  prompt_fragment: |
+    Compare the account identifiers collected from the two sessions.
+    Check if they point to the same account by comparing:
+    - User ID
+    - Account ID
+    - Profile URL
+    - Username
+    - Any other unique identifiers
+    Determine whether the identifiers are identical (same account) or
+    different (separate accounts).
+- id: CHECK_SESSION_PERSISTENCE
+  category: interaction
+  description: Check whether a logged-in session remains active after a credential or identifier change.
+  ui_patterns:
+  - Settings
+  - Account
+  - Logged in
+  - Session expired
+  - Sign in
+  - Log in
+  used_by:
+  - T3_T4
+  source:
+  - savior/semantic_navigator/prompts/t3_t4.txt
+  prompt_fragment: |
+    After a credential or identifier change, verify whether the current session
+    remains active by refreshing and attempting to access account pages.
+    Record whether the session persisted or was terminated.
+- id: LOCATE_BINDING_MANAGEMENT
+  category: interaction
+  description: Find IdP association controls and test whether binding or unbinding requires reauthentication.
+  ui_patterns:
+  - Connected accounts
+  - Linked accounts
+  - Social login
+  - OAuth
+  - Google
+  - Third-party
+  - Apps
+  - Integrations
+  used_by:
+  - T5
+  source:
+  - savior/semantic_navigator/prompts/t5.txt
+  prompt_fragment: |
+    Find the OAuth, social login, connected accounts, or third-party app
+    management section in account settings. For available add/connect or
+    remove/disconnect operations, determine whether password entry, MFA,
+    fresh login, or another explicit reauthentication gate is required
+    before the operation can proceed.
+- id: CHECK_OAUTH_AVAILABILITY
+  category: interaction
+  description: Verify whether Google OAuth login is available on the target site.
+  ui_patterns:
+  - Sign in with Google
+  - Continue with Google
+  - Login with Google
+  - Google
+  - OAuth
+  - SSO
+  used_by:
+  - T1_STEP2
+  - T2
+  - T5
+  - T6
+  source:
+  - savior/semantic_navigator/prompts/t6.txt
+  - savior/semantic_navigator/prompts/t1_step2.txt
+  - savior/semantic_navigator/prompts/t2.txt
+  - savior/semantic_navigator/prompts/t5.txt
+  notes: Explicit availability check and N/A behavior are from t6.txt.
+  prompt_fragment: |
+    Check if Google OAuth login is available on the target site by looking
+    for "Sign in with Google", "Continue with Google", or similar buttons.
+    If no Google OAuth option exists, the test is not applicable for this site.
+- id: HANDLE_COOKIE_BANNERS
+  category: directive
+  description: Dismiss or handle cookie banners, modals, and popups during navigation.
+  ui_patterns:
+  - Accept
+  - Accept all
+  - Agree
+  - Continue
+  - Reject
+  - Cookie
+  - Privacy
+  used_by:
+  - T1_STEP2
+  source:
+  - savior/semantic_navigator/prompts/t1_step2.txt
+  prompt_fragment: |
+    4. Handle cookie banners/modals/popups automatically
+- id: DETECT_DUPLICATE_REGISTRATION
+  category: interaction
+  description: Attempt a second registration with the same email and detect duplicate-account warnings.
+  ui_patterns:
+  - already exists
+  - already registered
+  - already in use
+  - email is taken
+  - duplicate
+  - try signing in
+  used_by:
+  - T7
+  source:
+  - savior/semantic_navigator/prompts/t7.txt
+  prompt_fragment: |
+    Attempt another registration using the same email address and observe
+    whether the site blocks the duplicate account or allows the flow to proceed.

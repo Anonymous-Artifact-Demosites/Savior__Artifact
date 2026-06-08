@@ -1,0 +1,123 @@
+$auditor_context
+
+Open new browser,Navigate to $target_url and complete the following account registration security test:
+If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+PHASE 1 - Normal Email Registration:
+1. Find the registration/sign-up page
+2. Register a new account using:
+   - Email: $email
+   - Password: $password_registration
+3. CRITICAL: Check if email verification is required during or after registration
+   - If NO email verification is required (registration completes directly without asking to verify email), output 'RESULT: T2_N/A' and EXIT immediately
+   - If email verification IS required, output 'PHASE1: Email verification required' and continue to next phase
+4. Do NOT proceed to PHASE 2 unless email verification is clearly required or the account is already existed
+
+PHASE 2 - Google OAuth Registration (in a NEW browser window/profile):
+1. Open $target_url in a completely new browser session (incognito/private mode)
+2. Find and click the 'Sign in with Google' or 'Continue with Google' button
+3. Complete Google OAuth login using:
+   - Google Account Email: $email
+   - Google Account Password: $password_gmail
+4. If email verification is required:
+   a) Open Gmail in a new tab
+   b) Login to Gmail with the same credentials (Email: $email, Password: $password_gmail)
+   c) Find the verification email
+   d) Either click the verification link OR copy the verification code
+   e) Complete the email verification process on the website
+5. After successful OAuth registration/login, collect unique account identifiers (user ID, account ID, profile URL, etc.)
+6. Output 'PHASE2: OAuth registration completed' with collected identifiers
+
+PHASE 3 - Email/Password Login Test:
+1. Return to the first browser window (from PHASE 1)
+2. Navigate to the login page
+3. Login using:
+   - Email: $email
+   - Password: $password_registration
+4. After login, collect the same type of account identifiers as in PHASE 2
+5. Output 'PHASE3: Email login completed' with collected identifiers
+
+PHASE 4 - Account Comparison:
+1. Compare the account identifiers from PHASE 2 (OAuth) and PHASE 3 (Email/Password)
+2. Check if they point to the SAME account by comparing:
+   - User ID
+   - Account ID
+   - Profile URL
+   - Username
+   - Any other unique identifiers
+3. If identifiers are IDENTICAL (same account):
+   - Output 'RESULT: T2_VULN'
+   - This means OAuth and email registration created/linked to the same account (security issue)
+4. If identifiers are DIFFERENT (different accounts):
+   - Output 'RESULT: T2_SAFE'
+   - This means OAuth and email registration created separate accounts (expected behavior)
+
+IMPORTANT NOTES:
+- Handle all CAPTCHAs by calling 'python handler.py' if needed
+- For email verification, always check Gmail and complete the verification process
+- Collect as many unique identifiers as possible for accurate comparison
+- Be thorough in comparing accounts - don't rely only on display names
+- Output clear status messages for each phase
+
+IF RESULT is T2_VULN, you MUST also output vulnerability analysis:
+
+VULN_ANALYSIS_START
+Attack Path:
+1. [Describe: How you registered with email (Phase 1)]
+2. [Describe: What verification was required/shown]
+3. [Describe: How you performed OAuth login (Phase 2)]
+4. [Describe: How OAuth bypassed/linked to the unverified account]
+5. [Describe: How you confirmed both methods access same account (Phase 3-4)]
+Missing Security Check: [e.g., "OAuth login linked to unverified email registration without requiring email ownership proof"]
+Proof of Vulnerability: [e.g., "User ID from OAuth login matches User ID from email/password login: both are 123456"]
+Account Identifiers Compared: [List the matching identifiers]
+VULN_ANALYSIS_END
+
+--- OUTPUT REQUIREMENTS ---
+
+After completing all phases above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the RESULT, PHASE, and VULN_ANALYSIS blocks above.
+
+STEP LOG INSTRUCTIONS:
+For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+<observations>
+{
+  "task_id": "T2",
+  "target_url": "<the exact URL tested>",
+  "steps_completed": "<array of phase numbers completed, e.g. [1,2,3,4]>",
+  "execution_status": "<one of: completed, interrupted, failed>",
+  "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+  "screenshots": "<array of screenshot filenames saved during this test>",
+  "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+  "task_specific": {
+    "registration_verification_required": "<boolean: true if normal email registration required email verification before account access>",
+    "oauth_registration_completed": "<boolean: true if Google OAuth registration/login completed successfully>",
+    "email_login_completed": "<boolean: true if email/password login succeeded in Phase 3>",
+    "oauth_identifiers": "<object mapping identifier field names to values observed after OAuth login, e.g. {'user_id': '123', 'profile_url': '/user/123'}>",
+    "email_identifiers": "<object mapping same identifier field names to values observed after email login>",
+    "is_identifiers_identical": "<boolean: true if OAuth and email login identifiers point to the same account>"
+  }
+}
+</observations>
+
+BLOCK 2 - Your verdict:
+
+<verdict>
+RESULT: <one of T2_VULN, T2_SAFE, T2_N/A>
+CONFIDENCE: <one of high, medium, low>
+REASONING: <one sentence explaining why you chose this result>
+</verdict>
+
+BLOCK 3 - Evidence (only if RESULT is T2_VULN, reuse the VULN_ANALYSIS block):
+
+<evidence>
+VULN_ANALYSIS_START
+(same content as the VULN_ANALYSIS block you already output above)
+VULN_ANALYSIS_END
+</evidence>
+
+If RESULT is not T2_VULN, still output:
+<evidence>
+None
+</evidence>

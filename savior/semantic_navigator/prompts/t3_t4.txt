@@ -1,0 +1,144 @@
+$auditor_context
+
+Open new browser,Navigate to $target_url and complete the following email rebinding security test:
+If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+MUST FINISH ALL PHASE!
+PHASE 1 - Login:
+1. Navigate to $target_url
+2. Find and click the login/sign-in button
+3. Login or register using the following credentials :
+   - Email: $email
+   - Password: $password
+4. Complete any additional verification if required, use python handler.py to solve CAPTCHA.
+5. Confirm successful login or register by verifying you're on the logged-in dashboard/homepage
+
+PHASE 2 - Email Rebinding Process:
+1. Look for account settings, profile settings, or user settings
+2. Navigate through ALL possible menus to find the email change/rebind option
+3. Once you find the email rebinding option, try every possible way to change/edit email from $email to $new_email
+4. CRITICAL - Email Verification Process:
+   The system will send verification emails to BOTH email addresses. You MUST complete verification for BOTH:
+   
+   Step A - Verify OLD Email ($email):
+   - Open Gmail in a new tab
+   - Login to Gmail with: $email / $password
+   - Check inbox for verification email
+   - Find and click the verification link OR extract the verification code and enter it on the website
+   
+   Step B - Verify NEW Email ($new_email):
+   - Open Gmail in another new tab
+   - Login to Gmail with: $new_email / $new_password
+   - Check inbox for verification email
+   - Find and click the verification link OR extract the verification code and enter it on the website
+
+5. Complete the entire email change process using these verifications from both email addresses
+6. Use all necessary methods to complete email verification
+7. Record the verification requirements:
+   - Did the system send verification to OLD email? (Yes/No)
+   - Did the system REQUIRE verification from OLD email? (Yes/No)
+   - Did the system send verification to NEW email? (Yes/No)
+   - Did the system REQUIRE verification from NEW email? (Yes/No)
+
+PHASE 3 - Session Status Check (T4 Test):
+1. After completing the email rebinding process (whether successful or not)
+2. Check if the current logged-in session is still active:
+   - Refresh the current page
+   - Try to access account settings or other account-related pages
+   - Check if you're still logged in or if you were forced to log out
+3. Record whether the session was terminated or remained active
+
+RESULT DETERMINATION:
+
+For T3 Test:
+- If the system does NOT require OLD email verification (only requires NEW email verification), output: STATUS_T3: T3_VULN
+- If the system REQUIRES OLD email verification (must verify from old email), output: STATUS_T3: T3_SAFE
+
+For T4 Test:
+- If the account was NOT forced to log out after email rebinding, output: STATUS_T4: T4_VULN
+- If the account WAS forced to log out after email rebinding, output: STATUS_T4: T4_SAFE
+
+CRITICAL NOTES:
+- When CAPTCHA appears, call 'python handler.py' to solve it and log the solving results
+- Be thorough in searching for the email rebinding option - try all settings menus
+- MUST complete verification for BOTH old and new email addresses if verification emails are sent
+- Document each step of the verification process clearly
+- Pay attention to whether old email verification is REQUIRED vs OPTIONAL
+- Clearly distinguish between email verification sent vs verification actually required
+- Test the session status AFTER the rebinding process is complete
+
+[CRITICAL - REPORTING FORMAT]
+After completing all phases, you MUST output the following tags on separate lines so my script can parse them. DO NOT use bold or markdown on these tags:
+
+STATUS_T3: [T3_VULN or T3_SAFE]
+STATUS_T4: [T4_VULN or T4_SAFE]
+
+Example of final output:
+STATUS_T3: T3_VULN
+STATUS_T4: T4_VULN
+
+IF STATUS_T3 is T3_VULN, output T3 vulnerability analysis:
+
+T3_VULN_ANALYSIS_START
+Attack Path:
+1. [Describe: How you logged in]
+2. [Describe: How you found email change option]
+3. [Describe: What verification was required for email change]
+4. [Describe: Whether old email verification was required or skipped]
+Missing Security Check: [e.g., "Old email verification not required - only new email needed confirmation"]
+Proof of Vulnerability: [e.g., "Email changed from A to B without any confirmation sent to original email A"]
+T3_VULN_ANALYSIS_END
+
+IF STATUS_T4 is T4_VULN, output T4 vulnerability analysis:
+
+T4_VULN_ANALYSIS_START
+Attack Path:
+1. [Describe: State before email change - logged in as user]
+2. [Describe: Email change process completed]
+3. [Describe: Session status after email change]
+Missing Security Check: [e.g., "Session not terminated after credential change"]
+Proof of Vulnerability: [e.g., "After changing email, page refresh still showed logged-in state, could access /settings without re-authentication"]
+T4_VULN_ANALYSIS_END
+
+--- OUTPUT REQUIREMENTS ---
+
+After completing all phases above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS_T3, STATUS_T4, and VULN_ANALYSIS blocks above.
+
+STEP LOG INSTRUCTIONS:
+For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+<observations>
+{
+  "task_id": "T3_T4",
+  "target_url": "<the exact URL tested>",
+  "steps_completed": "<array of phase numbers completed, e.g. [1,2,3]>",
+  "execution_status": "<one of: completed, interrupted, failed>",
+  "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+  "screenshots": "<array of screenshot filenames saved during this test>",
+  "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+  "task_specific": {
+    "login_succeeded": "<boolean: true if login with provided credentials succeeded>",
+    "email_change_found": "<boolean: true if email change/rebind option was found in settings>",
+    "email_change_succeeded": "<boolean: true if email was successfully changed from old to new>",
+    "old_email_verification_required": "<boolean: true if the site REQUIRED verification from the OLD email during email change>",
+    "new_email_verification_required": "<boolean: true if the site REQUIRED verification from the NEW email during email change>",
+    "session_persisted_after_change": "<boolean: true if the logged-in session remained active after email change (page refresh still shows logged-in state)>"
+  }
+}
+</observations>
+
+BLOCK 2 - Your verdict:
+
+<verdict>
+STATUS_T3: <one of T3_VULN, T3_SAFE>
+STATUS_T4: <one of T4_VULN, T4_SAFE>
+CONFIDENCE: <one of high, medium, low>
+REASONING: <one sentence explaining your T3 and T4 verdicts>
+</verdict>
+
+BLOCK 3 - Evidence (reuse any VULN_ANALYSIS blocks you already output above):
+
+<evidence>
+(Include T3_VULN_ANALYSIS and/or T4_VULN_ANALYSIS blocks if applicable, otherwise: None)
+</evidence>

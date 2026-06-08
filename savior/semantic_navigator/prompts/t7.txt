@@ -1,0 +1,89 @@
+$auditor_context
+
+Open new browser,Navigate to $target_url and complete the following duplicate registration test:
+If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+PHASE 1 - First Registration Attempt:
+1. Find the sign-up/register page
+2. Attempt to register using email: $email
+3. If password is required, set it to: $password_1
+4. Complete the registration process until EITHER:
+   - Account is fully created, OR
+   - Email verification is required (stop here, do not verify)
+5. Note the registration outcome
+
+PHASE 2 - Second Registration Attempt:
+1. Open $target_url in a fresh browser instance
+2. Navigate to the sign-up/register page again
+3. Attempt to register using the SAME email: $email
+4. If password is required, use: $password_2
+5. Observe the system response
+
+RESULT DETERMINATION:
+- If the system allows proceeding with registration WITHOUT any duplicate email warning, output: STATUS: T7_VULN (vulnerable to registration DoS - attacker can block legitimate users)
+- If the system can't register, or shows ANY message indicating the email already exists, is already registered, or is already in use, output: STATUS: T7_SAFE (protected against registration DoS)
+
+CRITICAL NOTES:
+- When CAPTCHA appears, call 'handler.py' to solve it and log the solving results
+- Do NOT complete email verification in Phase 1
+- Focus on detecting whether the system prevents duplicate email registration
+- Record all relevant error messages or warnings displayed
+
+IF STATUS is T7_VULN, you MUST also output vulnerability analysis:
+
+VULN_ANALYSIS_START
+Attack Path:
+1. [Describe: First registration attempt - what happened]
+2. [Describe: Second registration attempt with same email - what happened]
+3. [Describe: System response to duplicate email]
+Missing Security Check: [e.g., "System does not check if email is already registered before allowing registration to proceed"]
+Proof of Vulnerability: [e.g., "Second registration with same email proceeded to next step without any 'email already exists' warning"]
+System Response Observed: [Exact message or behavior seen]
+VULN_ANALYSIS_END
+
+--- OUTPUT REQUIREMENTS ---
+
+After completing all phases above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS and VULN_ANALYSIS blocks above.
+
+STEP LOG INSTRUCTIONS:
+For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+<observations>
+{
+  "task_id": "T7",
+  "target_url": "<the exact URL tested>",
+  "steps_completed": "<array of phase numbers completed, e.g. [1,2]>",
+  "execution_status": "<one of: completed, interrupted, failed>",
+  "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+  "screenshots": "<array of screenshot filenames saved during this test>",
+  "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+  "task_specific": {
+    "first_registration_outcome": "<string: describe what happened - e.g. 'account created', 'email verification pending', 'registration failed'>",
+    "second_registration_allowed": "<boolean: true if the second registration attempt with same email was allowed to proceed without any duplicate warning>",
+    "duplicate_error_shown": "<boolean: true if any 'email already exists' or 'already registered' error was shown>",
+    "error_message_text": "<string: exact error message text shown for duplicate registration, or null if none>"
+  }
+}
+</observations>
+
+BLOCK 2 - Your verdict:
+
+<verdict>
+STATUS: <one of T7_VULN, T7_SAFE>
+CONFIDENCE: <one of high, medium, low>
+REASONING: <one sentence explaining why you chose this status>
+</verdict>
+
+BLOCK 3 - Evidence (only if STATUS is T7_VULN):
+
+<evidence>
+VULN_ANALYSIS_START
+(same content as the VULN_ANALYSIS block you already output above)
+VULN_ANALYSIS_END
+</evidence>
+
+If STATUS is T7_SAFE, still output:
+<evidence>
+None
+</evidence>

@@ -1,0 +1,104 @@
+================================================================================
+                    VULNERABILITY ANALYSIS REPORT - T2
+================================================================================
+
+[Basic Information]
+Target URL      : https://www.2captcha.com
+Domain          : 2captcha_com
+Test Time       : 2026-05-20 15:23:17 - 2026-05-20 15:31:11
+Duration        : 00:07:54
+Status          : T2_VULN
+
+================================================================================
+[Vulnerability Overview]
+================================================================================
+ID              : T2
+Name            : Unaligned First-party Verification Hijacking
+Risk Level      : High
+
+Description:
+OAuth login can bypass email verification and link to unverified accounts.
+When a user registers with email (requiring verification) but doesn't verify,
+an attacker can use OAuth with the same email to activate and take over the account.
+
+================================================================================
+[Attack Analysis (Site-Specific)]
+================================================================================
+Attack Path:
+1. Registered via email/password with test_account@example.com - system required email verification (confirmation code page)
+2. In a new browser session, registered via Google OAuth with the same email - system created account without email verification
+3. Logged in via email/password - accessed the exact same account created by OAuth (identical API Key confirmed)
+4. OAuth and email registration linked to the same account, bypassing verification
+Missing Security Check: OAuth registration should not auto-link to a pending unverified email registration, or should require the email owner to verify before merging accounts
+Proof of Vulnerability: API Key from OAuth login and email/password login are identical, confirming same account access from both registration paths
+Account Identifiers Compared: API Key=[REDACTED_SAME_API_KEY]
+
+================================================================================
+[Cross-check Verification]
+================================================================================
+Verdict Source  : verified
+Confidence      : high
+Rule-based      : T2_VULN
+LLM             : T2_VULN
+Note            : Rule-based and LLM verdicts agree
+
+================================================================================
+[Screenshot Evidence]
+================================================================================
+Available       : False
+Agreement Rate  : N/A
+Interpretation  : Screenshot verification unavailable (no screenshots or OCR dependencies not installed)
+
+================================================================================
+[Step Log]
+================================================================================
+1. Registered with email/password using test_account@example.com; registration reached a confirmation-code page and required email verification. [completed]
+2. Opened a new browser session and registered or logged in with Google OAuth using the same email address; OAuth registration completed without requiring email verification. [completed]
+3. Logged in using the email/password credentials from Phase 1; the session reached the same account created or linked through OAuth. [completed]
+4. Compared account identifiers from OAuth and email/password sessions; the identifiers matched. [completed]
+
+
+================================================================================
+[Test Phases Summary]
+================================================================================
+Phase 1 (Email Registration): Email verification required
+Phase 2 (OAuth Registration): OAuth registration completed
+Phase 3 (Email Login Test): Email login completed
+
+================================================================================
+[General Remediation]
+================================================================================
+- Do not link OAuth accounts to unverified email registrations
+- Require email verification before allowing any login method
+- Treat OAuth registration and email registration as separate accounts until verified
+- Implement proper account merging only after both methods verify email ownership
+
+================================================================================
+[Test Credentials (Redacted)]
+================================================================================
+Email: test_account@example.com
+Registration Password: [REDACTED]
+Gmail Password: [REDACTED]
+
+================================================================================
+[Raw Test Output]
+================================================================================
+PHASE1: Email verification required
+PHASE2: OAuth registration completed
+PHASE3: Email login completed
+RESULT: T2_VULN
+
+The Google OAuth registration and the email/password registration created or linked to the same account. Email/password registration required verification, but Google OAuth registration completed without email verification and the later email/password login reached the same account as the OAuth session.
+
+VULN_ANALYSIS_START
+Attack Path:
+1. Registered via email/password with test_account@example.com - system required email verification (confirmation code page)
+2. In a new browser session, registered via Google OAuth with the same email - system created account without email verification
+3. Logged in via email/password - accessed the exact same account created by OAuth (identical API Key confirmed)
+4. OAuth and email registration linked to the same account, bypassing verification
+Missing Security Check: OAuth registration should not auto-link to a pending unverified email registration, or should require the email owner to verify before merging accounts
+Proof of Vulnerability: API Key from OAuth login and email/password login are identical, confirming same account access from both registration paths
+Account Identifiers Compared: API Key=[REDACTED_SAME_API_KEY]
+VULN_ANALYSIS_END
+
+================================================================================

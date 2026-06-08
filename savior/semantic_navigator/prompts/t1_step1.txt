@@ -1,0 +1,145 @@
+$auditor_context
+
+Use Playwright MCP tool. DO NOT generate code files. DO NOT use JavaScript.
+If you hit any step that cannot be safely automated (e.g. unsolved captcha, mobile/phone verification or other human-only checks), pause automation, explain what manual action is needed, and then wait for the user to complete it before you continue.
+Anti-detection: 0.5s delays, type email/password slowly (10ms/char).Report CAPTCHA if encountered.
+
+Credentials: Email=$email, Password=$password, Username=$username
+
+SCREENSHOT REQUIREMENTS:
+- Save screenshots to: $screenshot_path
+- Naming format: register_[step_name].png
+- Required screenshots:
+  * register_homepage.png - Initial page
+  * register_form_filled.png - Registration form filled
+  * register_submitted.png - After form submission
+  * register_dashboard.png - After successful login/dashboard
+  * register_settings_page.png - Settings/account page
+  * register_email_verification_status.png - Email verification status (MANDATORY for SUCCESS/DOUBT)
+  * register_user_info.png - Final user information page (MANDATORY for SUCCESS/DOUBT)
+
+EXECUTE:
+When encountering captcha, MUST use bash to call handler.py to solve the captcha on the webpage. Do not create code. Make sure the captcha on the webpage is solved successfully.
+
+1. Open new browser,Navigate to $url
+   -> Take screenshot: register_homepage.png
+
+2-4. Register on $url :
+   - Find registration form, fill slowly
+   -> Take screenshot: register_form_filled.png
+   - Submit form
+   -> Take screenshot: register_submitted.png
+   - If immediate email verification required -> FAIL (no more screenshots needed)
+   - Complete post-registration forms (Age=25, Location=New York, Bio="Tech")
+
+5. Continue until dashboard
+   -> Take screenshot: register_dashboard.png
+
+6. MANDATORY - FIND EMAIL SETTINGS:
+   Try ALL until found:
+   a) Click user avatar -> Settings/Account/Profile
+   b) Look for Settings/Account buttons on page
+   c) Try URLs: /settings, /account, /profile, /user/settings
+   d) Use Playwright to search page for "setting", "account"
+   
+   -> Take screenshot: register_settings_page.png
+   
+   In settings, find email section (check ALL tabs if multiple exist)
+
+7. CRITICAL - VERIFICATION STATUS CHECK:
+   Use Playwright MCP to:
+   - Get page text content
+   - Search for elements containing "verify", "unverified", "verification"
+   - Look for warning banners, alert boxes, colored badges near email
+   - Check if any buttons with "verify" text exist
+   
+   -> MANDATORY SCREENSHOT: register_email_verification_status.png
+   (Capture the area showing email and its verification status)
+   
+   ONLY IF NONE FOUND -> SUCCESS:
+   Email shown with NO verification text anywhere on page
+   No "verify" buttons or links
+   No warning banners OR shows "verified"/"confirmed" status
+   
+   **IMPORTANT**: if it EXISTS -> DOUBT
+
+8. IF STATUS IS SUCCESS or DOUBT - Extract ALL user information visible in profile/settings (user ID, email, username, bio, location, etc.). Search ALL tabs. ONLY include fields with actual values.
+   
+   -> MANDATORY SCREENSHOT: register_user_info.png
+   (Capture the complete user profile/settings page showing all user information)
+
+9. MUST OUTPUT in plain text (NO markdown, NO asterisks):
+  STATUS: [SUCCESS or DOUBT or FAIL]
+  OBSTACLES: [issues or "None"]
+  
+  IF SUCCESS or DOUBT, also output (only non-empty fields):
+  USER_INFO_START
+  [Field]: [value]
+  [Field]: [value]
+  USER_INFO_END
+
+IMPORTANT: For SUCCESS and DOUBT status, you MUST save at least these 2 screenshots:
+- register_email_verification_status.png
+- register_user_info.png
+
+IF STATUS is SUCCESS or DOUBT, you MUST also output vulnerability analysis:
+
+VULN_ANALYSIS_START
+Attack Path:
+1. [Describe: How you found the registration page]
+2. [Describe: What fields you filled and how]
+3. [Describe: What happened after form submission]
+4. [Describe: How you accessed dashboard/settings without email verification]
+5. [Describe: What you observed about email verification status]
+Missing Security Check: [What verification was absent - e.g., "No email verification required before account activation"]
+Proof of Vulnerability: [What confirmed the issue - e.g., "Email displayed in settings with no verification badge or pending status"]
+VULN_ANALYSIS_END
+
+--- OUTPUT REQUIREMENTS ---
+
+After completing all steps above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS, USER_INFO, and VULN_ANALYSIS blocks above.
+
+STEP LOG INSTRUCTIONS:
+For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+<observations>
+{
+  "task_id": "T1_STEP1",
+  "target_url": "<the exact URL tested>",
+  "steps_completed": "<array of integer step numbers successfully completed, e.g. [1,2,3,4,5,6,7,8,9]>",
+  "execution_status": "<one of: completed, interrupted, failed>",
+  "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+  "screenshots": "<array of screenshot filenames saved during this test>",
+  "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+  "task_specific": {
+    "registration_completed": "<boolean: true if registration form was submitted and account was created>",
+    "verification_required": "<boolean: true if the site required email verification before granting account access>",
+    "verification_text_found": "<boolean: true if any text containing 'verify', 'unverified', or 'verification' was found on the settings/profile page>",
+    "dashboard_accessible": "<boolean: true if dashboard/home page was accessible after registration without verifying email>",
+    "email_visible_in_settings": "<boolean: true if the registered email was visible in account settings>"
+  }
+}
+</observations>
+
+BLOCK 2 - Your verdict:
+
+<verdict>
+STATUS: <one of SUCCESS, DOUBT, FAIL>
+CONFIDENCE: <one of high, medium, low>
+REASONING: <one sentence explaining why you chose this status>
+</verdict>
+
+BLOCK 3 - Evidence (only if STATUS is SUCCESS or DOUBT, reuse the VULN_ANALYSIS block):
+
+<evidence>
+VULN_ANALYSIS_START
+(same content as the VULN_ANALYSIS block you already output above)
+VULN_ANALYSIS_END
+</evidence>
+
+If STATUS is FAIL, still output:
+<evidence>
+None
+</evidence>

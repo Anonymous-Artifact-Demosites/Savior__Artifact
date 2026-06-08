@@ -1,0 +1,341 @@
+tasks:
+  T6:
+    name: "The Shadow Binding Attack"
+    reference: "Q6"
+    status_values: ["T6_VULN", "T6_SAFE", "T6_N/A"]
+    na_status: "T6_N/A"
+
+    invariants:
+      - id: INV_T6_1
+        reference: Q6
+        description: >
+          After primary identifier (email) is updated, all IdP bindings
+          established under the old identifier must be invalidated.
+          If OAuth A can still access the same account as OAuth B
+          after email change, the binding was not cleaned up.
+        check:
+          type: all_of
+          conditions:
+            - type: leaf
+              field: task_specific.email_change_succeeded
+              operator: eq
+              value: true
+            - type: leaf
+              field: task_specific.is_identifiers_identical
+              operator: eq
+              value: true
+
+    verdict_rule:
+      - condition:
+          type: leaf
+          field: task_specific.has_google_oauth
+          operator: eq
+          value: false
+        status: "T6_N/A"
+        reason: "No Google OAuth login found on site"
+
+      - condition:
+          type: leaf
+          field: task_specific.email_change_succeeded
+          operator: eq
+          value: false
+        status: "T6_N/A"
+        reason: "Email change prerequisite could not be completed"
+
+      - condition:
+          invariant: INV_T6_1
+          violated: true
+        status: "T6_VULN"
+        reason: "Shadow binding: OAuth A and B access same account after email change"
+
+      - default: true
+        status: "T6_SAFE"
+        reason: "OAuth binding properly invalidated after email change"
+
+  T1_STEP1:
+    name: "Implicit Pre-hijacking - Registration Phase"
+    reference: "Q1"
+    status_values: ["SUCCESS", "DOUBT", "FAIL"]
+
+    invariants:
+      - id: INV_T1_1
+        reference: Q1
+        description: >
+          Registration must require email verification before granting
+          account access. If account dashboard is accessible without
+          verification, attacker can pre-register with victim's email.
+        check:
+          type: all_of
+          conditions:
+            - type: leaf
+              field: task_specific.verification_required
+              operator: eq
+              value: false
+            - type: leaf
+              field: task_specific.dashboard_accessible
+              operator: eq
+              value: true
+
+    verdict_rule:
+      - condition:
+          type: leaf
+          field: task_specific.verification_text_found
+          operator: eq
+          value: true
+        status: "DOUBT"
+        reason: "Verification text found on page but not blocking access"
+
+      - condition:
+          invariant: INV_T1_1
+          violated: true
+        status: "SUCCESS"
+        reason: "No email verification required - account accessible without verification"
+
+      - default: true
+        status: "FAIL"
+        reason: "Email verification required or registration failed"
+
+  T1_STEP2:
+    name: "Implicit Pre-hijacking - OAuth Login Phase"
+    reference: "Q4"
+    status_values: ["SUCCESS", "FAIL"]
+
+    invariants:
+      - id: INV_T1_2
+        reference: Q4
+        description: >
+          OAuth login must not auto-link to an unverified first-party
+          account based solely on email matching. If OAuth login succeeds
+          and the profile is accessible, the pre-hijack attack chain works.
+        check:
+          type: leaf
+          field: task_specific.oauth_login_succeeded
+          operator: eq
+          value: true
+
+    verdict_rule:
+      - condition:
+          invariant: INV_T1_2
+          violated: true
+        status: "SUCCESS"
+        reason: "OAuth login succeeded - account accessible without prior email verification"
+
+      - default: true
+        status: "FAIL"
+        reason: "OAuth login failed or required additional verification"
+
+  T2:
+    name: "Unaligned First-party Verification Hijacking"
+    reference: "Q2, Q3"
+    status_values: ["T2_VULN", "T2_SAFE", "T2_N/A"]
+    na_status: "T2_N/A"
+
+    invariants:
+      - id: INV_T2_1
+        reference: Q2
+        description: >
+          OAuth registration and email registration must not silently
+          link to the same account. If they do, an attacker can bypass
+          email verification by using OAuth to access an unverified account.
+        check:
+          type: all_of
+          conditions:
+            - type: leaf
+              field: task_specific.oauth_registration_completed
+              operator: eq
+              value: true
+            - type: leaf
+              field: task_specific.email_login_completed
+              operator: eq
+              value: true
+            - type: leaf
+              field: task_specific.is_identifiers_identical
+              operator: eq
+              value: true
+
+    verdict_rule:
+      - condition:
+          type: leaf
+          field: task_specific.registration_verification_required
+          operator: eq
+          value: false
+        status: "T2_N/A"
+        reason: "No email verification in normal registration - test not applicable"
+
+      - condition:
+          invariant: INV_T2_1
+          violated: true
+        status: "T2_VULN"
+        reason: "OAuth and email registration link to the same account"
+
+      - default: true
+        status: "T2_SAFE"
+        reason: "OAuth and email registration create separate accounts"
+
+  T3_T4:
+    name: "Email Rebinding Security (T3 + T4)"
+    reference: "Q5, Q7"
+    # T3_T4 produces TWO independent statuses. cross_check is called twice.
+    # status_values lists all possible values across both sub-verdicts.
+    status_values: ["T3_VULN", "T3_SAFE", "T3_N/A", "T4_VULN", "T4_SAFE", "T4_N/A"]
+
+    invariants:
+      - id: INV_T3_1
+        reference: Q5
+        description: >
+          Email change must require verification from the OLD email.
+          If old email verification is not required, attacker with
+          temporary access can rebind the account to their own email.
+        check:
+          type: all_of
+          conditions:
+            - type: leaf
+              field: task_specific.email_change_succeeded
+              operator: eq
+              value: true
+            - type: leaf
+              field: task_specific.old_email_verification_required
+              operator: eq
+              value: false
+
+      - id: INV_T4_1
+        reference: Q7
+        description: >
+          Active sessions must be terminated after credential change
+          (email rebinding). If session persists, attacker retains
+          access after victim reclaims the account.
+        check:
+          type: leaf
+          field: task_specific.session_persisted_after_change
+          operator: eq
+          value: true
+
+    # T3 verdict rules (used when cross_check is called for T3)
+    verdict_rule_t3:
+      - condition:
+          type: leaf
+          field: task_specific.email_change_found
+          operator: eq
+          value: false
+        status: "T3_N/A"
+        reason: "Email change option not found"
+
+      - condition:
+          type: leaf
+          field: task_specific.email_change_succeeded
+          operator: eq
+          value: false
+        status: "T3_N/A"
+        reason: "Email change prerequisite could not be completed"
+
+      - condition:
+          invariant: INV_T3_1
+          violated: true
+        status: "T3_VULN"
+        reason: "Old email verification not required for email change"
+
+      - default: true
+        status: "T3_SAFE"
+        reason: "Old email verification required for email change"
+
+    # T4 verdict rules (used when cross_check is called for T4)
+    verdict_rule_t4:
+      - condition:
+          type: leaf
+          field: task_specific.email_change_succeeded
+          operator: eq
+          value: false
+        status: "T4_N/A"
+        reason: "Email change prerequisite could not be completed"
+
+      - condition:
+          invariant: INV_T4_1
+          violated: true
+        status: "T4_VULN"
+        reason: "Session not terminated after email change"
+
+      - default: true
+        status: "T4_SAFE"
+        reason: "Session terminated after email change"
+
+  T5:
+    name: "Unauthorized IdP Association Manipulation"
+    reference: "Q8"
+    status_values: ["T5_SAFE", "T5_VULN", "T5_N/A"]
+    na_status: "T5_N/A"
+
+    invariants:
+      - id: INV_T5_1
+        reference: Q8
+        description: >
+          Binding a new IdP or unbinding an existing IdP must require
+          user reauthentication. If either sensitive IdP association operation
+          can proceed without reauthentication, an attacker with temporary
+          account access can implant or remove OAuth associations.
+        check:
+          type: any_of
+          conditions:
+            - type: leaf
+              field: task_specific.binding_requires_reauth
+              operator: eq
+              value: false
+            - type: leaf
+              field: task_specific.unbinding_requires_reauth
+              operator: eq
+              value: false
+
+    verdict_rule:
+      - condition:
+          type: leaf
+          field: task_specific.oauth_login_succeeded
+          operator: eq
+          value: false
+        status: "T5_N/A"
+        reason: "OAuth login failed - IdP association test not applicable"
+
+      - condition:
+          type: leaf
+          field: task_specific.binding_management_available
+          operator: eq
+          value: false
+        status: "T5_N/A"
+        reason: "No IdP binding or unbinding management entry found"
+
+      - condition:
+          invariant: INV_T5_1
+          violated: true
+        status: "T5_VULN"
+        reason: "IdP binding or unbinding can proceed without reauthentication"
+
+      - default: true
+        status: "T5_SAFE"
+        reason: "Available IdP binding and unbinding operations require reauthentication"
+
+  T7:
+    name: "First-party Registration DoS"
+    reference: "Q3"
+    status_values: ["T7_VULN", "T7_SAFE"]
+
+    invariants:
+      - id: INV_T7_1
+        reference: Q3
+        description: >
+          System must detect duplicate email during registration.
+          If a second registration with the same email proceeds without
+          error, an attacker can block legitimate users from registering.
+        check:
+          type: leaf
+          field: task_specific.second_registration_allowed
+          operator: eq
+          value: true
+
+    verdict_rule:
+      - condition:
+          invariant: INV_T7_1
+          violated: true
+        status: "T7_VULN"
+        reason: "System allows duplicate registration - DoS possible"
+
+      - default: true
+        status: "T7_SAFE"
+        reason: "System detects duplicate email - DoS protected"

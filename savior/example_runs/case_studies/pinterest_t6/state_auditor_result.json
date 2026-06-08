@@ -1,0 +1,130 @@
+{
+  "task_id": "T6",
+  "target_url": "https://www.pinterest.com",
+  "domain": "pinterest_com",
+  "observations_valid": true,
+  "observations_error": null,
+  "observations": {
+    "task_id": "T6",
+    "target_url": "https://www.pinterest.com",
+    "steps_completed": [1, 2, 3, 4, 5, 6, 7],
+    "execution_status": "completed",
+    "captcha_encountered": false,
+    "screenshots": [],
+    "step_log": [
+      {
+        "step": 1,
+        "action": "Check Google OAuth availability on Pinterest login page",
+        "result": "Google OAuth login was available",
+        "evidence": "Pinterest login page exposed Google OAuth login",
+        "obstacles": []
+      },
+      {
+        "step": 2,
+        "action": "Log in with Google OAuth account A",
+        "result": "OAuth A login succeeded and accessed the Pinterest account",
+        "evidence": "Authenticated Pinterest account was reachable after OAuth A login",
+        "obstacles": []
+      },
+      {
+        "step": 3,
+        "action": "Change the primary email from account A to account B",
+        "result": "Email change succeeded",
+        "evidence": "Account settings reflected the migrated email state",
+        "obstacles": []
+      },
+      {
+        "step": 4,
+        "action": "Log out after the email change",
+        "result": "Logout succeeded",
+        "evidence": "Session was terminated before the OAuth B login attempt",
+        "obstacles": []
+      },
+      {
+        "step": 5,
+        "action": "Log in with Google OAuth account B and collect identifiers",
+        "result": "OAuth B accessed the same Pinterest account",
+        "evidence": "OAuth B reached the same username, profile URL, and account settings",
+        "obstacles": []
+      },
+      {
+        "step": 6,
+        "action": "Log out after the OAuth B session",
+        "result": "Logout succeeded",
+        "evidence": "Session was terminated before the OAuth A relogin attempt",
+        "obstacles": []
+      },
+      {
+        "step": 7,
+        "action": "Log in again with Google OAuth account A and collect identifiers",
+        "result": "OAuth A still accessed the same Pinterest account",
+        "evidence": "OAuth A reached the same username, profile URL, and account settings after email migration",
+        "obstacles": []
+      }
+    ],
+    "task_specific": {
+      "has_google_oauth": true,
+      "oauth_a_login_succeeded": true,
+      "email_change_succeeded": true,
+      "old_email_verification_required": false,
+      "new_email_verification_required": true,
+      "first_logout_succeeded": true,
+      "oauth_b_login_succeeded": true,
+      "oauth_b_identifiers": {
+        "username": "testuser_pinterest",
+        "profile_url": "/testuser_pinterest/",
+        "account_settings_accessible": true
+      },
+      "second_logout_succeeded": true,
+      "oauth_a_relogin_succeeded": true,
+      "oauth_a_identifiers": {
+        "username": "testuser_pinterest",
+        "profile_url": "/testuser_pinterest/",
+        "account_settings_accessible": true
+      },
+      "is_identifiers_identical": true
+    }
+  },
+  "llm_result": {
+    "status": "T6_VULN",
+    "confidence": "high",
+    "reasoning": "OAuth accounts A and B both accessed the same Pinterest account after the email was changed from A to B."
+  },
+  "rule_result": {
+    "status": "T6_VULN",
+    "reason": "Email change succeeded and the pre-change OAuth binding still resolved to the same account."
+  },
+  "cross_check": {
+    "status": "T6_VULN",
+    "confidence": "high",
+    "source": "verified",
+    "requires_manual_review": false,
+    "note": "Rule-based and LLM verdicts agree",
+    "path_a": {
+      "status": "T6_VULN",
+      "reason": "Email change succeeded and the pre-change OAuth binding still resolved to the same account."
+    },
+    "path_b": {
+      "status": "T6_VULN",
+      "confidence": "high",
+      "reasoning": "OAuth accounts A and B both accessed the same Pinterest account after the email was changed from A to B."
+    },
+    "screenshot_evidence": {
+      "available": false,
+      "agreement_rate": null,
+      "checks": [],
+      "interpretation": "Screenshot verification unavailable (no screenshots or OCR dependencies not installed)"
+    }
+  },
+  "evidence": {
+    "attack_path": [
+      "Logged in with Google OAuth account A and created a Pinterest account",
+      "Changed the primary email from A to B through account settings",
+      "Logged out and logged in with Google OAuth account B; accessed the same Pinterest account",
+      "Logged out and logged in with Google OAuth account A; still accessed the same Pinterest account",
+      "Both OAuth accounts accessed the same website account"
+    ],
+    "missing_security_check": "Email change did not unbind the original OAuth account.",
+    "proof": "OAuth A and OAuth B both accessed the same Pinterest account, with matching username, profile URL, and account settings."
+  }
+}

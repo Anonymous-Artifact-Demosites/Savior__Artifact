@@ -1,0 +1,91 @@
+$auditor_context
+
+Open new browser, Navigate to $url and find the login page.
+
+1. Check if Google OAuth login exists, if not output 'STATUS: T6_N/A' and exit.
+
+2. If Google OAuth exists:
+   Step 1 - Login with Google account A (email: $email_a, password: $password_a) via OAuth
+   Step 2 - Navigate to account settings/profile and try every possible ways to change/edit email from A to B (email: $email_b, password: $password_b).
+   Step 3 - CRITICAL: The service will send verification emails to BOTH email addresses. Open Gmail in new tabs:
+     (a) Login to Gmail as A (email: $email_a, password: $password_a), check inbox for verification email, find and click the verification link OR extract the verification code and enter it.
+     (b) Login to Gmail as B (email: $email_b, password: $password_b), check inbox for verification email, find and click the verification link OR extract the verification code and enter it.
+     Complete the email change process using these verifications.
+   Step 4 - Logout.
+   Step 5 - Login using Google OAuth with account B (email: $email_b, password: $password_b), collect ANY available unique account identifiers that can distinguish this account.
+   Step 6 - Logout.
+   Step 7 - Login using Google OAuth with account A (email: $email_a, password: $password_a), collect identifiers again.
+
+3. If the collected identifiers from Step5 and Step7 are IDENTICAL, output 'STATUS: T6_VULN' else output 'STATUS: T6_SAFE'. DO NOT only rely on display name.
+
+When CAPTCHA appears, call 'python handler.py', log results. Use all necessary methods to complete email verification.
+
+IF STATUS is T6_VULN, you MUST also output vulnerability analysis:
+
+VULN_ANALYSIS_START
+Attack Path:
+1. [Describe: How you logged in with OAuth A]
+2. [Describe: How you changed email from A to B]
+3. [Describe: How you logged in with OAuth B and what identifiers you collected]
+4. [Describe: How you logged in with OAuth A again and what identifiers you collected]
+5. [Describe: How you confirmed both OAuth accounts access same website account]
+Missing Security Check: [e.g., "Email change did not unbind original OAuth, creating shadow binding"]
+Proof of Vulnerability: [e.g., "OAuth A identifiers: UserID=123, OAuth B identifiers: UserID=123 - identical"]
+Identifiers Collected: [List all identifiers from both OAuth logins]
+VULN_ANALYSIS_END
+
+--- OUTPUT REQUIREMENTS ---
+
+After completing all steps above, you MUST output the following three blocks at the end of your response. These are in ADDITION to the STATUS and VULN_ANALYSIS blocks above.
+
+STEP LOG INSTRUCTIONS:
+For each major step or phase, append one object to step_log with step, action, result, evidence, and obstacles. Use concise factual entries and include failed or skipped steps with the reason.
+
+BLOCK 1 - Structured observations (JSON wrapped in XML tags):
+
+<observations>
+{
+  "task_id": "T6",
+  "target_url": "<the exact URL tested>",
+  "steps_completed": "<array of integer step numbers successfully completed, e.g. [1,2,3,4,5,6,7]>",
+  "execution_status": "<one of: completed, interrupted, failed>",
+  "captcha_encountered": "<boolean: true if any CAPTCHA was encountered>",
+  "screenshots": "<array of screenshot filenames saved during this test>",
+  "step_log": "<array of objects, one per executed step/phase, each with fields: step, action, result, evidence, obstacles>",
+  "task_specific": {
+    "has_google_oauth": "<boolean: true if Google OAuth login button was found on the site>",
+    "oauth_a_login_succeeded": "<boolean: true if OAuth login with account A completed successfully>",
+    "email_change_succeeded": "<boolean: true if email was successfully changed from A to B>",
+    "old_email_verification_required": "<boolean: true if the site required verification from the OLD email during email change>",
+    "new_email_verification_required": "<boolean: true if the site required verification from the NEW email during email change>",
+    "first_logout_succeeded": "<boolean: true if logout after email change completed>",
+    "oauth_b_login_succeeded": "<boolean: true if OAuth login with account B completed successfully>",
+    "oauth_b_identifiers": "<object mapping identifier field names to observed values after logging in with OAuth B; use the most stable unique identifiers (user ID, UUID, account number), NOT display names>",
+    "second_logout_succeeded": "<boolean: true if second logout completed>",
+    "oauth_a_relogin_succeeded": "<boolean: true if OAuth login with account A (after email change) completed successfully>",
+    "oauth_a_identifiers": "<object mapping same identifier field names to observed values after logging in with OAuth A post-change; same keys as oauth_b_identifiers>",
+    "is_identifiers_identical": "<boolean: true if OAuth A and OAuth B identifiers point to the same account>"
+  }
+}
+</observations>
+
+BLOCK 2 - Your verdict:
+
+<verdict>
+STATUS: <one of T6_VULN, T6_SAFE, T6_N/A>
+CONFIDENCE: <one of high, medium, low>
+REASONING: <one sentence explaining why you chose this status>
+</verdict>
+
+BLOCK 3 - Evidence (only if STATUS is T6_VULN, reuse the VULN_ANALYSIS block):
+
+<evidence>
+VULN_ANALYSIS_START
+(same content as the VULN_ANALYSIS block you already output above)
+VULN_ANALYSIS_END
+</evidence>
+
+If STATUS is not T6_VULN, still output:
+<evidence>
+None
+</evidence>
