@@ -1,7 +1,5 @@
 # SAVIOR Artifact
 
-This artifact accompanies the paper *"The Tower of Babel: Systematically Analyzing Account Management Vulnerabilities in Web OAuth Integration"*.
-
 Start with [`savior/SAVIOR_GUIDE.md`](savior/SAVIOR_GUIDE.md). It maps the paper's SAVIOR architecture and Algorithm 1 functions to concrete source files, explains the detection pipeline, and points to the sanitized case-study outputs.
 
 Contents:
