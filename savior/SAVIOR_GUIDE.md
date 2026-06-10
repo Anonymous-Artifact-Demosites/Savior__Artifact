@@ -283,8 +283,6 @@ savior/
   handler.py                       # CAPTCHA resolution handler
 ```
 
-At the repository root, `requirements.txt` and `pyproject.toml` define the Python dependencies, and `.mcp.json` provides the Playwright MCP configuration used by the Browser Interactor.
-
 ## Security and Ethics
 
 This tool is intended solely for responsible-disclosure research under controlled conditions, following the Menlo Report principles described in the paper's Ethical Considerations. All testing uses researcher-controlled accounts; the artifact ships no target-website credentials and no pre-configured attack scripts. Credentials are collected interactively via `getpass` and redacted in output reports.
